@@ -9,7 +9,7 @@ export const Header = () => {
         <span className="font-bold">StackVibe</span>
       </div>
       <div className="flex items-center gap-2.5">
-        <Button variant="invertGhost" size="sm" href={"/sign-in"}>
+        <Button variant="outline" size="sm" href={"/sign-in"}>
           Sign in
         </Button>
         <Button variant="secondary" size="sm" href={"/sign-in"}>

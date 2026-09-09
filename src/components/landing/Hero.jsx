@@ -17,7 +17,7 @@ export const Hero = () => {
         <Button variant="secondary" href={"/sign-up"}>
           Start building — it&rsquo;s free
         </Button>
-        <Button variant="invertGhost" href={"/sign-up"}>
+        <Button variant="outline" href={"/sign-up"}>
           Sign in
         </Button>
 

@@ -2,17 +2,11 @@ import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
 
 const variants = {
-  primary:
-    "bg-black text-white hover:bg-gray-800",
-
-  secondary:
-    "border border-gray-300 bg-white text-black! hover:bg-white/95",
-
-  ghost:
-    "bg-transparent text-gray-700 hover:text-black",
-
-  invertGhost:
-    "border border-transparent bg-transparent text-white hover:border-gray-300 hover:text-gray-300",
+  primary: "bg-gray-800! text-white! hover:bg-black!",
+  secondary: "border border-gray-300 bg-white text-black! hover:bg-white/85",
+  outline: "border border-gray-300 bg-transparent text-gray-50 hover:bg-gray-50 hover:text-black!",
+  ghost: "bg-transparent text-gray-700 hover:text-black",
+  social: "border! border-gray-300! text-black! hover:bg-[#262626]! hover:text-white!"
 };
 
 const sizes = {

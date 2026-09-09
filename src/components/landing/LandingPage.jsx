@@ -4,7 +4,7 @@ import { Footer } from "./Footer";
 
 export const LandingPage = () => {
   return (
-    <div className="h-screen overflow-hidden bg-black text-white flex flex-col">
+    <div className="h-screen overflow-hidden bg-gray-900 text-white flex flex-col">
         <Header />
         <Hero />
         <Footer />
