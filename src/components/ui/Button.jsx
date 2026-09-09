@@ -2,11 +2,11 @@ import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
 
 const variants = {
-  primary: "bg-gray-800! text-white! hover:bg-black!",
-  secondary: "border border-gray-300 bg-white text-black! hover:bg-white/85",
-  outline: "border border-gray-300 bg-transparent text-gray-50 hover:bg-gray-50 hover:text-black!",
-  ghost: "bg-transparent text-gray-700 hover:text-black",
-  social: "border! border-gray-300! text-black! hover:bg-[#262626]! hover:text-white!"
+  primary: "bg-[var(--gray-800)]! text-white! hover:bg-[var(--black)]!",
+  secondary: "border border-[var(--gray-300)] bg-white text-[var(--black)]! hover:bg-white/85",
+  outline: "border border-[var(--gray-300)] bg-transparent text-[var(--gray-50)] hover:bg-[var(--gray-50)] hover:text-[var(--black)]!",
+  ghost: "bg-transparent text-[var(--gray-700)] hover:text-[var(--black)]",
+  social: "border! border-[var(--gray-300)]! text-[var(--black)]! hover:bg-[var(--gray-800)]! hover:text-white!"
 };
 
 const sizes = {
