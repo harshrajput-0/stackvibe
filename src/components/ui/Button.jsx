@@ -22,6 +22,7 @@ export function Button({
   href,
   className,
   disabled = false,
+  block = false,
   ...props
 }) {
   const classes = cn(
@@ -35,6 +36,7 @@ export function Button({
     "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60",
     variants[variant],
     sizes[size],
+    block && "w-full",
     className,
   );
 
