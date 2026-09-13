@@ -2,29 +2,29 @@ import Project from "@/models/project.modal";
 import crypto from "crypto"
 
 
-function hashContent(content){
-    return crypto.createHash("md5").update(content).digest("hex").slice(0,12);
+function hashContent(content) {
+    return crypto.createHash("md5").update(content).digest("hex").slice(0, 12);
 }
 
 
 // Check usper
 const checkUser = (req, res) => {
-  if (!req.user) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+    if (!req.user) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+    }
 };
 
 
 // Create a new project from prompt
-export async function createProject( req, res ) {
+export async function createProject(req, res) {
     checkUser(req, res);
 
     // Get Prompt and check
     const prompt = req.body;
 
-    if( !prompt ) {
-        res.status(404).json({ message: "Prompt is required!"});
+    if (!prompt) {
+        res.status(404).json({ message: "Prompt is required!" });
     }
 
     // Get User and check if authorized
@@ -36,7 +36,7 @@ export async function createProject( req, res ) {
         files: {},
         messages: [
             { role: "user", content: prompt },
-            { role: "assistant", content: "Planning the project..."}
+            { role: "assistant", content: "Planning the project..." }
         ],
         version: 0,
         owner: req.user.userId,
@@ -65,26 +65,26 @@ export async function createProject( req, res ) {
         filesGenerated: project.filesGenerated,
     })
 
-    
+
 }
 
 
 // Create a new project from prompt
-export async function runBackgroundGeneration( req, res ) {
+export async function runBackgroundGeneration(req, res) {
     // Funtino for ai to create project
 }
 
 
 // List all project owned by the user
-export async function listProjects( req, res ) {
+export async function listProjects(req, res) {
     // Check user
     checkUser(req, res);
 
 
     // Find all projects
-    const projects= await Project.find(
-        {owner: req.user.userId},
-        {name: 1, description: 1, version: 1, createdAt: 1, updatedAt: 1, }
+    const projects = await Project.find(
+        { owner: req.user.userId },
+        { name: 1, description: 1, version: 1, createdAt: 1, updatedAt: 1, }
     ).sort({
         updatedAt: -1
     })
@@ -94,7 +94,7 @@ export async function listProjects( req, res ) {
 
 
 // Get project details
-export async function getProject( req, res ) {
+export async function getProject(req, res) {
     // Check user
     checkUser(req, res);
 
@@ -104,8 +104,8 @@ export async function getProject( req, res ) {
         owner: req.user.userId,
     })
 
-    if( !project ){
-        res.status(404).json({ error: "Project not found"});
+    if (!project) {
+        res.status(404).json({ error: "Project not found" });
         return
     }
 
@@ -132,7 +132,7 @@ export async function getProject( req, res ) {
 
 
 // delete the Project
-export async function deleteProject( req, res ) {
+export async function deleteProject(req, res) {
 
     // Check User
     checkUser(req, res);
@@ -143,7 +143,7 @@ export async function deleteProject( req, res ) {
         owner: req.user.userID,
     })
 
-    if ( !result ) {
+    if (!result) {
         res.status(404).json({
             error: "Project not found"
         })
@@ -152,11 +152,11 @@ export async function deleteProject( req, res ) {
 }
 
 // Create a new project from prompt
-export async function updateProjectFiles( req, res ) {
+export async function updateProjectFiles(req, res) {
     const { files } = req.body;
-    
-    if ( !files || typeof files !== object) {
-        res.status(400).json({ error: "Fiels object is required"});
+
+    if (!files || typeof files !== object) {
+        res.status(400).json({ error: "Fiels object is required" });
         return;
     }
 
@@ -171,7 +171,7 @@ export async function updateProjectFiles( req, res ) {
     })
 
 
-    if ( !project ){
+    if (!project) {
         res.status(404).json({
             error: "Project not found"
         });
@@ -182,23 +182,23 @@ export async function updateProjectFiles( req, res ) {
     // Rebuild project files maps with content and hashes
     const newFiles = {};
     for (const [path, content] of object) {
-        if( typeof content === "string" ) {
-            newFiles[path] = { content, hash: hashContent(content)}
+        if (typeof content === "string") {
+            newFiles[path] = { content, hash: hashContent(content) }
         }
     }
 
-    project.files = newFiles; 
+    project.files = newFiles;
     await project.save();
 
 
     const filesObj = {};
-       for (const [path, entry] of object) {
-        if( typeof content === "string" ) {
+    for (const [path, entry] of object) {
+        if (typeof content === "string") {
             filesObj[path] = entry.content;
         }
     }
 
-        res.json({
+    res.json({
         _id: project._id,
         name: project.name,
         description: project.description,
@@ -212,7 +212,7 @@ export async function updateProjectFiles( req, res ) {
 
 
 // Create a new project from prompt
-export async function publishProject( req, res ) {
+export async function publishProject(req, res) {
 
     // check user
     checkUser(req, res);
@@ -223,16 +223,16 @@ export async function publishProject( req, res ) {
         { returnDocument: after },
     );
 
-    if ( !project ) {
+    if (!project) {
         res.status(404).json({
             error: "Project not found"
         })
 
         return;
     }
-    
+
     const filesObj = {};
-    for (const [path, entry] of Object.entries(project.files)){
+    for (const [path, entry] of Object.entries(project.files)) {
         filesObj[path] = entry.content;
     }
 
@@ -245,3 +245,35 @@ export async function publishProject( req, res ) {
 }
 
 
+// Get public project
+export async function getPublicProject(req, res) {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+        res.status(404).json({
+            error: "Project not found"
+        })
+        return
+    }
+
+    if (!project.published) {
+        res.status(403).json({
+            error: "Project is not publised"
+        })
+        return;
+    }
+
+    const filesObj = {};
+    for (const [path, entry] of Object.entries(project.files)) {
+        filesObj[path] = entry.content;
+    }
+
+    res.json({
+        _id: project._id,
+        name: project.name,
+        description: project.description,
+        files: filesObj,
+        version: project.version,
+    })
+
+}
