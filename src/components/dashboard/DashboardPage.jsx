@@ -6,7 +6,7 @@ import { PromptBox } from "./PromptBox";
 import { ChipRow } from "./ChipRow";
 import { ProjectGrid } from "./ProjectGrid";
 import { useDashboardPrompt } from "@/hooks/useDashboardPrompt";
-import { listProjects } from "@/lib/services/projectService";
+import { listProjects } from "@/app/services/projectService";
 import { slugify } from "@/lib/utils/slugify";
 import { deriveProjectName } from "@/lib/utils/deriveProjectName";
 

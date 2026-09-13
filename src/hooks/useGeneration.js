@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { runGenerationSequence } from "@/lib/services/generationService";
+import { runGenerationSequence } from "@/app/services/generationService";
 import { PLANNED_FILES } from "@/lib/constants";
 
 
