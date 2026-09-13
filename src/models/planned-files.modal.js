@@ -14,7 +14,7 @@ const plannedFileSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const PlannedFile =

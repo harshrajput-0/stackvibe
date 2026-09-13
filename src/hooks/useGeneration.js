@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { runGenerationSequence } from "@/app/services/generationService";
 import { PLANNED_FILES } from "@/lib/constants";
 
-
 // Owns all state for the "AI Agent is building..." sequence:
 // progress percent, per-file status, and the resulting log messages.
 // The actual timing/business logic lives in generationService.
@@ -12,7 +11,9 @@ import { PLANNED_FILES } from "@/lib/constants";
 export function useGeneration() {
   const [percent, setPercent] = useState(0);
   const [doneCount, setDoneCount] = useState(0);
-  const [fileStatuses, setFileStatuses] = useState(() => PLANNED_FILES.map(() => "pending"));
+  const [fileStatuses, setFileStatuses] = useState(() =>
+    PLANNED_FILES.map(() => "pending"),
+  );
   const [logEntries, setLogEntries] = useState([]);
   const [isComplete, setIsComplete] = useState(false);
   const cancelRef = useRef(null);
@@ -42,7 +43,10 @@ export function useGeneration() {
         });
         setDoneCount(index + 1);
         setPercent(pct);
-        setLogEntries((prev) => [...prev, { id: `file-${index}`, file: file.file }]);
+        setLogEntries((prev) => [
+          ...prev,
+          { id: `file-${index}`, file: file.file },
+        ]);
       },
       onComplete: () => {
         setIsComplete(true);

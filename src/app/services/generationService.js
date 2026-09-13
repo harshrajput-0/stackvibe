@@ -1,6 +1,14 @@
-import { GENERATION_STEP_DELAY_MS, GENERATION_COMPLETE_DELAY_MS, PLANNED_FILES } from "@/lib/constants";
+import {
+  GENERATION_STEP_DELAY_MS,
+  GENERATION_COMPLETE_DELAY_MS,
+  PLANNED_FILES,
+} from "@/lib/constants";
 
-export function runGenerationSequence({ onFileStart, onFileComplete, onComplete }) {
+export function runGenerationSequence({
+  onFileStart,
+  onFileComplete,
+  onComplete,
+}) {
   const files = PLANNED_FILES;
   let step = 0;
   let cancelled = false;

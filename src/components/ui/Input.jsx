@@ -76,10 +76,13 @@ export const Input = ({
       </div>
 
       {error && (
-        <p id={`${inputId}-error`} className="mt-1.5 text-[12.5px] text-red-700">
+        <p
+          id={`${inputId}-error`}
+          className="mt-1.5 text-[12.5px] text-red-700"
+        >
           {error}
         </p>
       )}
     </div>
   );
-}
+};

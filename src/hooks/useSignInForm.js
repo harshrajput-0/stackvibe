@@ -33,12 +33,16 @@ export function useSignInForm() {
           setError("Additional verification is required to finish signing in.");
         }
       } catch (err) {
-        setError(err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || "Couldn't sign you in. Check your details and try again.");
+        setError(
+          err?.errors?.[0]?.longMessage ||
+            err?.errors?.[0]?.message ||
+            "Couldn't sign you in. Check your details and try again.",
+        );
       } finally {
         setIsSubmitting(false);
       }
     },
-    [isLoaded, isSubmitting, signIn, email, password, setActive, router]
+    [isLoaded, isSubmitting, signIn, email, password, setActive, router],
   );
 
   const submitOAuth = useCallback(
@@ -51,10 +55,14 @@ export function useSignInForm() {
           redirectUrlComplete: REDIRECT_URL,
         });
       } catch (err) {
-        setError(err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || "Couldn't start that sign-in method.");
+        setError(
+          err?.errors?.[0]?.longMessage ||
+            err?.errors?.[0]?.message ||
+            "Couldn't start that sign-in method.",
+        );
       }
     },
-    [isLoaded, signIn]
+    [isLoaded, signIn],
   );
 
   return {

@@ -19,7 +19,9 @@ export const DashboardPage = () => {
   function handleGenerate() {
     const projectName = deriveProjectName(value);
     const slug = slugify(projectName);
-    router.push(`/builder/${slug}?mode=generate&name=${encodeURIComponent(projectName)}`);
+    router.push(
+      `/builder/${slug}?mode=generate&name=${encodeURIComponent(projectName)}`,
+    );
   }
 
   // Open an existing project form project grid
@@ -33,14 +35,22 @@ export const DashboardPage = () => {
       <TopNav />
       <main className="mx-auto max-w-230 px-6 pt-18 pb-20 max-[640px]:px-4.5 max-[640px]:pt-12 max-[640px]:pb-20">
         <div className="text-center">
-          <h1 className="text-[clamp(32px,5vw,48px)] font-bold tracking-tight">Build with AI</h1>
-          <p className="mt-1.5 text-[17px] text-(--gray-500)">Turn your idea into a website.</p>
+          <h1 className="text-[clamp(32px,5vw,48px)] font-bold tracking-tight">
+            Build with AI
+          </h1>
+          <p className="mt-1.5 text-[17px] text-(--gray-500)">
+            Turn your idea into a website.
+          </p>
         </div>
 
-        <PromptBox value={value} onChange={setValue} onSubmit={handleGenerate} />
+        <PromptBox
+          value={value}
+          onChange={setValue}
+          onSubmit={handleGenerate}
+        />
         <ChipRow onSelect={fillFromChip} />
         <ProjectGrid projects={projects} onOpenProject={handleOpenProject} />
       </main>
     </div>
   );
-}
+};

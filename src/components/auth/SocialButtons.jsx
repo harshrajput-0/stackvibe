@@ -2,7 +2,7 @@ import { Button } from "../ui";
 
 export function SocialButtons({ onGoogle, onGithub }) {
   return (
-    <div className="flex flex-col gap-2.5"> 
+    <div className="flex flex-col gap-2.5">
       <Button type="button" variant="social" onClick={onGoogle}>
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
           <path
@@ -13,7 +13,10 @@ export function SocialButtons({ onGoogle, onGithub }) {
             fill="currentColor"
             d="M8 16c2.16 0 3.97-.72 5.3-1.92l-2.59-2c-.72.48-1.64.77-2.71.77-2.08 0-3.85-1.4-4.48-3.29H.85v2.07A8 8 0 0 0 8 16z"
           />
-          <path fill="currentColor" d="M3.52 9.56A4.8 4.8 0 0 1 3.27 8c0-.54.09-1.07.25-1.56V4.37H.85A8 8 0 0 0 0 8c0 1.29.31 2.51.85 3.63l2.67-2.07z" />
+          <path
+            fill="currentColor"
+            d="M3.52 9.56A4.8 4.8 0 0 1 3.27 8c0-.54.09-1.07.25-1.56V4.37H.85A8 8 0 0 0 0 8c0 1.29.31 2.51.85 3.63l2.67-2.07z"
+          />
           <path
             fill="currentColor"
             d="M8 3.18c1.18 0 2.23.4 3.06 1.2l2.3-2.3C11.96.86 10.15 0 8 0A8 8 0 0 0 .85 4.37l2.67 2.07C4.15 4.58 5.92 3.18 8 3.18z"

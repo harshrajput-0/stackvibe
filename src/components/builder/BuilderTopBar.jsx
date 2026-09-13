@@ -6,7 +6,9 @@ function TabButton({ active, onClick, children }) {
   return (
     <button
       className={`h-7.5 rounded-[5px] px-3.5 text-[13px] font-medium transition-[background,color] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-        active ? "bg-white text-black shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : "text-gray-500"
+        active
+          ? "bg-white text-black shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+          : "text-gray-500"
       }`}
       onClick={onClick}
     >
@@ -15,7 +17,14 @@ function TabButton({ active, onClick, children }) {
   );
 }
 
-export function BuilderTopBar({ projectName, mainView, onShowCode, onShowPreview, onOpenPublish, onPublish }) {
+export function BuilderTopBar({
+  projectName,
+  mainView,
+  onShowCode,
+  onShowPreview,
+  onOpenPublish,
+  onPublish,
+}) {
   return (
     <div className="flex h-14 flex-none items-center justify-between border-b border-gray-200 bg-white px-4.5">
       <div className="flex items-center gap-2.5 text-sm font-semibold">

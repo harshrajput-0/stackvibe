@@ -40,13 +40,26 @@ const LATTICE_DOTS = [
 export function Logo({ width = 19, height = 21.4, color = "white" }) {
   const fill = color === "white" ? "white" : "#0A0A0A";
   return (
-    <svg width={width} height={height} viewBox="0 0 63 71" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 63 71"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
       {PATHS.map((d) => (
         <path key={d.slice(0, 12)} d={d} fill={fill} />
       ))}
       <g stroke={fill} strokeOpacity="0.4" strokeWidth="0.35" fill="none">
         {LATTICE_LINES.map(([x1, y1, x2, y2]) => (
-          <line key={`${x1}-${y1}-${x2}-${y2}`} x1={x1} y1={y1} x2={x2} y2={y2} />
+          <line
+            key={`${x1}-${y1}-${x2}-${y2}`}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+          />
         ))}
       </g>
       <g fill={fill} fillOpacity="0.65">

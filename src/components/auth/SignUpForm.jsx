@@ -47,7 +47,11 @@ export function SignUpForm() {
               <div className="error">{error}</div>
             </div>
           )}
-          <button className="btn btn-primary btn-block" type="submit" disabled={isSubmitting}>
+          <button
+            className="btn btn-primary btn-block"
+            type="submit"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? "Verifying…" : "Verify email"}
           </button>
         </form>
@@ -57,10 +61,10 @@ export function SignUpForm() {
 
   return (
     <div className="w-full max-w-90">
-    
-
-            <FormHeader heading="Create your account"  description="Start building with StackVibe for free"/>
-      
+      <FormHeader
+        heading="Create your account"
+        description="Start building with StackVibe for free"
+      />
 
       <form onSubmit={submit}>
         <Input
@@ -101,16 +105,30 @@ export function SignUpForm() {
             <div className="error">{error}</div>
           </div>
         )}
-        <Button variant="primary" type="submit" disabled={isSubmitting} className="w-full">
+        <Button
+          variant="primary"
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full"
+        >
           {isSubmitting ? "Creating account…" : "Create account"}
         </Button>
       </form>
 
       <Divider />
-      <SocialButtons onGoogle={() => submitOAuth("oauth_google")} onGithub={() => submitOAuth("oauth_github")} />
+      <SocialButtons
+        onGoogle={() => submitOAuth("oauth_google")}
+        onGithub={() => submitOAuth("oauth_github")}
+      />
 
       <div className="mt-6.5 text-center text-[13px] text-gray-500">
-        Already have an account? <Link href="/sign-in" className="font-semibold text-gray-700! hover:text-gray-900! hover:underline">Sign in</Link>
+        Already have an account?{" "}
+        <Link
+          href="/sign-in"
+          className="font-semibold text-gray-700! hover:text-gray-900! hover:underline"
+        >
+          Sign in
+        </Link>
       </div>
 
       {/* Required mount point for Clerk's invisible bot-protection challenge */}

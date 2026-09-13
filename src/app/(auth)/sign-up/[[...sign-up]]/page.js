@@ -4,9 +4,9 @@ import { SignUpForm } from "@/components/auth/SignUpForm";
 const page = () => {
   return (
     <AuthScreen>
-        <SignUpForm />
+      <SignUpForm />
     </AuthScreen>
-  )
-}
+  );
+};
 
-export default page
+export default page;

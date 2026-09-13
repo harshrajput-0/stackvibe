@@ -6,14 +6,14 @@ const projectSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      default: "Untitled Project"
+      default: "Untitled Project",
     },
 
     description: {
-        type: String,
-        default: "",
+      type: String,
+      default: "",
     },
-    
+
     messages: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
@@ -35,7 +35,7 @@ const projectSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    
+
     published: {
       type: Boolean,
       default: false,
@@ -62,19 +62,18 @@ const projectSchema = new mongoose.Schema(
       type: String,
       defautl: null,
     },
-    
+
     error: {
       type: String,
       default: null,
-    }
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const Project =
-  mongoose.models.Project ||
-  mongoose.model("Project", projectSchema);
+  mongoose.models.Project || mongoose.model("Project", projectSchema);
 
 export default Project;

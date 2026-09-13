@@ -42,15 +42,21 @@ export function useSignUpForm() {
           return;
         }
 
-        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        await signUp.prepareEmailAddressVerification({
+          strategy: "email_code",
+        });
         setNeedsVerification(true);
       } catch (err) {
-        setError(err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || "Couldn't create your account. Try again.");
+        setError(
+          err?.errors?.[0]?.longMessage ||
+            err?.errors?.[0]?.message ||
+            "Couldn't create your account. Try again.",
+        );
       } finally {
         setIsSubmitting(false);
       }
     },
-    [isLoaded, isSubmitting, signUp, name, email, password, setActive, router]
+    [isLoaded, isSubmitting, signUp, name, email, password, setActive, router],
   );
 
   const submitVerification = useCallback(
@@ -68,12 +74,16 @@ export function useSignUpForm() {
           setError("That code didn't work. Please try again.");
         }
       } catch (err) {
-        setError(err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || "That code didn't work. Please try again.");
+        setError(
+          err?.errors?.[0]?.longMessage ||
+            err?.errors?.[0]?.message ||
+            "That code didn't work. Please try again.",
+        );
       } finally {
         setIsSubmitting(false);
       }
     },
-    [isLoaded, isSubmitting, signUp, code, setActive, router]
+    [isLoaded, isSubmitting, signUp, code, setActive, router],
   );
 
   const submitOAuth = useCallback(
@@ -86,10 +96,14 @@ export function useSignUpForm() {
           redirectUrlComplete: REDIRECT_URL,
         });
       } catch (err) {
-        setError(err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || "Couldn't start that sign-up method.");
+        setError(
+          err?.errors?.[0]?.longMessage ||
+            err?.errors?.[0]?.message ||
+            "Couldn't start that sign-up method.",
+        );
       }
     },
-    [isLoaded, signUp]
+    [isLoaded, signUp],
   );
   return {
     name,

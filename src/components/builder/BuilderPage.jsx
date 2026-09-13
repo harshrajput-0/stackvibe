@@ -98,13 +98,21 @@ export function BuilderPage({ projectSlug }) {
             />
           )}
           {view.mainView === "preview" && (
-            <PreviewView chromeUrl={chromeUrl} siteName={projectName} hero={hero} />
+            <PreviewView
+              chromeUrl={chromeUrl}
+              siteName={projectName}
+              hero={hero}
+            />
           )}
           {view.mainView === "code" && <CodeView />}
         </div>
       </div>
 
-      <PublishModal isOpen={publishModal.isOpen} onClose={publishModal.close} publishUrl={chromeUrl} />
+      <PublishModal
+        isOpen={publishModal.isOpen}
+        onClose={publishModal.close}
+        publishUrl={chromeUrl}
+      />
     </div>
   );
 }

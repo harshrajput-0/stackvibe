@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 
-
 // Builder screen's view state:
 // - mainView: shows ("generating" | "preview" | "code")
 // - sideTab: option ("chat" | "files")

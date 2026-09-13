@@ -10,7 +10,6 @@ function nextId() {
   return `msg-${messageIdCounter}`;
 }
 
-
 // Owns the chat panel's message list and input value.
 // Delegates the "what does the assistant say back" decision to chatService.
 
