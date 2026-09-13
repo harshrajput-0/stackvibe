@@ -1,8 +1,4 @@
-import crypto from "crypto";
-
-export function hashContent(content) {
-  return crypto.createHash("md5").update(content).digest("hex").slice(0, 12);
-}
+import { hashContent } from "@/lib/utils/hashContent";
 
 // Apply AI file operations (create, update, delete) to project files
 export function applyOperations(currentFiles, operations) {

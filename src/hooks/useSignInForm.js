@@ -6,63 +6,83 @@ import { useSignIn } from "@clerk/nextjs";
 
 const REDIRECT_URL = "/dashboard";
 
-// Manages sign-in form state and handles Clerk's authentication flow,
-// keeping Clerk-specific logic separate from the presentational form.
+// Handles sign-ip form state and Clerk authentication,
+// including email verification when needed.
 
 export function useSignInForm() {
-  const { isLoaded, signIn, setActive } = useSignIn();
+  const { signIn, fetchStatus } = useSignIn();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isSubmitting = fetchStatus === "fetching";
+
+  const navigate = useCallback(
+    async ({ session, decorateUrl }) => {
+      if (session?.currentTask) return;
+      const url = decorateUrl(REDIRECT_URL);
+      if (url.startsWith("http")) {
+        window.location.href = url;
+      } else {
+        router.push(url);
+      }
+    },
+    [router],
+  );
 
   const submit = useCallback(
     async (event) => {
       event.preventDefault();
-      if (!isLoaded || isSubmitting) return;
       setError("");
-      setIsSubmitting(true);
-      try {
-        const result = await signIn.create({ identifier: email, password });
-        if (result.status === "complete") {
-          await setActive({ session: result.createdSessionId });
-          router.push(REDIRECT_URL);
-        } else {
-          setError("Additional verification is required to finish signing in.");
-        }
-      } catch (err) {
+
+      const { error: submitError } = await signIn.password({
+        emailAddress: email,
+        password,
+      });
+
+      if (submitError) {
         setError(
-          err?.errors?.[0]?.longMessage ||
-            err?.errors?.[0]?.message ||
+          submitError?.errors?.[0]?.longMessage ||
+            submitError?.message ||
             "Couldn't sign you in. Check your details and try again.",
         );
-      } finally {
-        setIsSubmitting(false);
+        return;
+      }
+
+      if (signIn.status === "complete") {
+        await signIn.finalize({ navigate });
+      } else if (signIn.status === "needs_second_factor") {
+        setError("Additional verification is required to finish signing in.");
+      } else if (signIn.status === "needs_client_trust") {
+        setError(
+          "We don't recognize this device. Check your email for a verification code.",
+        );
+      } else {
+        setError("Couldn't sign you in. Check your details and try again.");
       }
     },
-    [isLoaded, isSubmitting, signIn, email, password, setActive, router],
+    [signIn, email, password, navigate],
   );
 
   const submitOAuth = useCallback(
     async (strategy) => {
-      if (!isLoaded) return;
-      try {
-        await signIn.authenticateWithRedirect({
-          strategy,
-          redirectUrl: "/sign-in/sso-callback",
-          redirectUrlComplete: REDIRECT_URL,
-        });
-      } catch (err) {
+      setError("");
+      const { error: oauthError } = await signIn.sso({
+        strategy,
+        redirectCallbackUrl: "/sign-in/sso-callback",
+        redirectUrl: REDIRECT_URL,
+      });
+      if (oauthError) {
         setError(
-          err?.errors?.[0]?.longMessage ||
-            err?.errors?.[0]?.message ||
+          oauthError?.errors?.[0]?.longMessage ||
+            oauthError?.message ||
             "Couldn't start that sign-in method.",
         );
       }
     },
-    [isLoaded, signIn],
+    [signIn],
   );
 
   return {

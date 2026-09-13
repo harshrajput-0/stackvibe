@@ -6,11 +6,11 @@ import { useSignUp } from "@clerk/nextjs";
 
 const REDIRECT_URL = "/dashboard";
 
-// Manages sign-up form state and handles Clerk's authentication flow,
-// including email verification when required.
+// Handles sign-up form state and Clerk authentication,
+// including email verification when needed.
 
 export function useSignUpForm() {
-  const { isLoaded, signUp, setActive } = useSignUp();
+  const { signUp, fetchStatus } = useSignUp();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -18,93 +18,107 @@ export function useSignUpForm() {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
+
+  const isSubmitting = fetchStatus === "fetching";
+
+  const navigate = useCallback(
+    async ({ session, decorateUrl }) => {
+      if (session?.currentTask) return;
+      const url = decorateUrl(REDIRECT_URL);
+      if (url.startsWith("http")) {
+        window.location.href = url;
+      } else {
+        router.push(url);
+      }
+    },
+    [router],
+  );
 
   const submit = useCallback(
     async (event) => {
       event.preventDefault();
-      if (!isLoaded || isSubmitting) return;
       setError("");
-      setIsSubmitting(true);
-      try {
-        const [firstName, ...rest] = name.trim().split(/\s+/);
-        const result = await signUp.create({
-          firstName: firstName || undefined,
-          lastName: rest.join(" ") || undefined,
-          emailAddress: email,
-          password,
-        });
 
-        if (result.status === "complete") {
-          await setActive({ session: result.createdSessionId });
-          router.push(REDIRECT_URL);
-          return;
-        }
+      const [firstName, ...rest] = name.trim().split(/\s+/);
 
-        await signUp.prepareEmailAddressVerification({
-          strategy: "email_code",
-        });
-        setNeedsVerification(true);
-      } catch (err) {
+      const { error: submitError } = await signUp.password({
+        emailAddress: email,
+        password,
+        firstName: firstName || undefined,
+        lastName: rest.join(" ") || undefined,
+      });
+
+      if (submitError) {
         setError(
-          err?.errors?.[0]?.longMessage ||
-            err?.errors?.[0]?.message ||
+          submitError?.errors?.[0]?.longMessage ||
+            submitError?.message ||
             "Couldn't create your account. Try again.",
         );
-      } finally {
-        setIsSubmitting(false);
+        return;
       }
+
+      if (signUp.status === "complete") {
+        await signUp.finalize({ navigate });
+        return;
+      }
+
+      const { error: codeError } = await signUp.verifications.sendEmailCode();
+      if (codeError) {
+        setError(
+          codeError?.errors?.[0]?.longMessage ||
+            codeError?.message ||
+            "Couldn't send a verification code. Try again.",
+        );
+        return;
+      }
+      setNeedsVerification(true);
     },
-    [isLoaded, isSubmitting, signUp, name, email, password, setActive, router],
+    [signUp, name, email, password, navigate],
   );
 
   const submitVerification = useCallback(
     async (event) => {
       event.preventDefault();
-      if (!isLoaded || isSubmitting) return;
       setError("");
-      setIsSubmitting(true);
-      try {
-        const result = await signUp.attemptEmailAddressVerification({ code });
-        if (result.status === "complete") {
-          await setActive({ session: result.createdSessionId });
-          router.push(REDIRECT_URL);
-        } else {
-          setError("That code didn't work. Please try again.");
-        }
-      } catch (err) {
-        setError(
-          err?.errors?.[0]?.longMessage ||
-            err?.errors?.[0]?.message ||
-            "That code didn't work. Please try again.",
-        );
-      } finally {
-        setIsSubmitting(false);
+
+      const { error: verifyError } = await signUp.verifications.verifyEmailCode(
+        { code },
+      );
+
+      if (verifyError) {
+        setError("That code didn't work. Please try again.");
+        return;
+      }
+
+      if (signUp.status === "complete") {
+        await signUp.finalize({ navigate });
+      } else {
+        setError("That code didn't work. Please try again.");
       }
     },
-    [isLoaded, isSubmitting, signUp, code, setActive, router],
+    [signUp, code, navigate],
   );
 
   const submitOAuth = useCallback(
     async (strategy) => {
-      if (!isLoaded) return;
-      try {
-        await signUp.authenticateWithRedirect({
-          strategy,
-          redirectUrl: "/sign-up/sso-callback",
-          redirectUrlComplete: REDIRECT_URL,
-        });
-      } catch (err) {
+      setError("");
+      const { error: oauthError } = await signUp.sso({
+        strategy,
+        redirectCallbackUrl: "/sign-up/sso-callback",
+        redirectUrl: REDIRECT_URL,
+      });
+      if (oauthError) {
         setError(
-          err?.errors?.[0]?.longMessage ||
-            err?.errors?.[0]?.message ||
+          oauthError?.errors?.[0]?.longMessage ||
+            oauthError?.message ||
             "Couldn't start that sign-up method.",
         );
       }
     },
-    [isLoaded, signUp],
+    [signUp],
   );
+
   return {
     name,
     setName,

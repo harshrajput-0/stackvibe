@@ -12,7 +12,7 @@ export const Header = () => {
         <Button variant="outline" size="sm" href={"/sign-in"}>
           Sign in
         </Button>
-        <Button variant="secondary" size="sm" href={"/sign-in"}>
+        <Button variant="secondary" size="sm" href={"/sign-up"}>
           Sign up
         </Button>
       </div>

@@ -15,7 +15,7 @@ const projectSchema = new mongoose.Schema(
     },
 
     messages: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: [mongoose.Schema.Types.ObjectId],
       ref: "Message",
       default: [],
     },
@@ -48,7 +48,7 @@ const projectSchema = new mongoose.Schema(
     },
 
     filesPlanned: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: [mongoose.Schema.Types.ObjectId],
       ref: "PlannedFile",
       default: [],
     },
@@ -60,7 +60,7 @@ const projectSchema = new mongoose.Schema(
 
     currentFile: {
       type: String,
-      defautl: null,
+      default: null,
     },
 
     error: {

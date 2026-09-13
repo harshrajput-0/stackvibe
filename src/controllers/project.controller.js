@@ -1,33 +1,30 @@
-import Project from "@/models/project.modal";
-import crypto from "crypto";
+import Project from "@/models/project.model.js";
+import { hashContent } from "@/lib/utils/hashContent.js";
+import { HttpError } from "@/lib/httpErrors.js";
 
-function hashContent(content) {
-  return crypto.createHash("md5").update(content).digest("hex").slice(0, 12);
+function requireUser(userId) {
+  if (!userId) {
+    throw new HttpError(401, "Unauthorized");
+  }
 }
 
-// Check usper
-const checkUser = (req, res) => {
-  if (!req.user) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
+function filesToObject(files) {
+  const filesObj = {};
+  for (const [path, entry] of Object.entries(files || {})) {
+    filesObj[path] = entry.content;
   }
-};
+  return filesObj;
+}
 
-// Create a new project from prompt
-export async function createProject(req, res) {
-  checkUser(req, res);
-
-  // Get Prompt and check
-  const prompt = req.body;
+// Create a new project from a prompt
+export async function createProject(userId, prompt) {
+  requireUser(userId);
 
   if (!prompt) {
-    res.status(404).json({ message: "Prompt is required!" });
+    throw new HttpError(400, "Prompt is required!");
   }
 
-  // Get User and check if authorized
-  checkUser(req, res);
-
-  // Create Project in DB immediately with "pending" status
+  // Create the project in DB immediately with "pending" status
   const project = await Project.create({
     name: "Planning Project...",
     files: {},
@@ -36,7 +33,7 @@ export async function createProject(req, res) {
       { role: "assistant", content: "Planning the project..." },
     ],
     version: 0,
-    owner: req.user.userId,
+    owner: userId,
     status: "pending",
     filesPlanned: [],
     filesGenerated: [],
@@ -44,7 +41,7 @@ export async function createProject(req, res) {
     error: null,
   });
 
-  // Start generating
+  // Kick off generation in the background; failures are logged, not awaited
   runBackgroundGeneration(project._id.toString(), prompt).catch((err) => {
     console.error(
       `[Assistant] Unable to generate the project ${project._id}:`,
@@ -52,62 +49,7 @@ export async function createProject(req, res) {
     );
   });
 
-  // sending response
-  res.status(201).json({
-    _id: project._id,
-    name: project.name,
-    description: project.description,
-    files: {},
-    messages: project.messages,
-    verion: project.verson,
-    status: project.status,
-    filesPlanned: project.filesPlanned,
-    filesGenerated: project.filesGenerated,
-  });
-}
-
-// Create a new project from prompt
-export async function runBackgroundGeneration(req, res) {
-  // Funtino for ai to create project
-}
-
-// List all project owned by the user
-export async function listProjects(req, res) {
-  // Check user
-  checkUser(req, res);
-
-  // Find all projects
-  const projects = await Project.find(
-    { owner: req.user.userId },
-    { name: 1, description: 1, version: 1, createdAt: 1, updatedAt: 1 },
-  ).sort({
-    updatedAt: -1,
-  });
-
-  res.json(projects);
-}
-
-// Get project details
-export async function getProject(req, res) {
-  // Check user
-  checkUser(req, res);
-
-  const project = await Project.findOne({
-    _id: req.params.id,
-    owner: req.user.userId,
-  });
-
-  if (!project) {
-    res.status(404).json({ error: "Project not found" });
-    return;
-  }
-
-  const filesObj = {};
-  for (const [path, entry] of Object.entries(project.files)) {
-    filesObj[path] = entry.content;
-  }
-
-  res.json({
+  return {
     _id: project._id,
     name: project.name,
     description: project.description,
@@ -115,61 +57,82 @@ export async function getProject(req, res) {
     messages: project.messages,
     version: project.version,
     status: project.status,
-    filesPlanned: project.fielsPlanned,
+    filesPlanned: project.filesPlanned,
+    filesGenerated: project.filesGenerated,
+  };
+}
+
+// Background AI generation job. Not yet implemented.
+export async function runBackgroundGeneration(projectId, prompt) {
+  // TODO: plan files, generate code, and save results onto the project
+}
+
+// List all projects owned by the user
+export async function listProjects(userId) {
+  requireUser(userId);
+
+  return Project.find(
+    { owner: userId },
+    { name: 1, description: 1, version: 1, createdAt: 1, updatedAt: 1 },
+  ).sort({ updatedAt: -1 });
+}
+
+// Get project details
+export async function getProjectById(id, userId) {
+  requireUser(userId);
+
+  const project = await Project.findOne({ _id: id, owner: userId });
+
+  if (!project) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  return {
+    _id: project._id,
+    name: project.name,
+    description: project.description,
+    files: filesToObject(project.files),
+    messages: project.messages,
+    version: project.version,
+    status: project.status,
+    filesPlanned: project.filesPlanned,
     filesGenerated: project.filesGenerated,
     currentFile: project.currentFile,
     error: project.error,
     createdAt: project.createdAt,
-  });
+  };
 }
 
-// delete the Project
-export async function deleteProject(req, res) {
-  // Check User
-  checkUser(req, res);
+// Delete a project
+export async function deleteProject(id, userId) {
+  requireUser(userId);
 
-  const result = await Project.findOneAndDelete({
-    _id: req.params.id,
-    owner: req.user.userID,
-  });
+  const result = await Project.findOneAndDelete({ _id: id, owner: userId });
 
   if (!result) {
-    res.status(404).json({
-      error: "Project not found",
-    });
-    return;
+    throw new HttpError(404, "Project not found");
   }
+
+  return { _id: id };
 }
 
-// Create a new project from prompt
-export async function updateProjectFiles(req, res) {
-  const { files } = req.body;
+// Overwrite a project's files
+export async function updateProjectFiles(id, userId, files) {
+  requireUser(userId);
 
-  if (!files || typeof files !== object) {
-    res.status(400).json({ error: "Fiels object is required" });
-    return;
+  if (!files || typeof files !== "object") {
+    throw new HttpError(400, "Files object is required");
   }
 
-  // Check user
-  checkUser(req, res);
-
-  // find the project
-  const project = await Project.findOne({
-    _id: req.params.id,
-    owner: req.user.userId,
-  });
+  const project = await Project.findOne({ _id: id, owner: userId });
 
   if (!project) {
-    res.status(404).json({
-      error: "Project not found",
-    });
-
-    return;
+    throw new HttpError(404, "Project not found");
   }
 
-  // Rebuild project files maps with content and hashes
+  // Rebuild the project's files map with content + hashes
   const newFiles = {};
-  for (const [path, content] of object) {
+  for (const [path, content] of Object.entries(files)) {
     if (typeof content === "string") {
       newFiles[path] = { content, hash: hashContent(content) };
     }
@@ -178,85 +141,57 @@ export async function updateProjectFiles(req, res) {
   project.files = newFiles;
   await project.save();
 
-  const filesObj = {};
-  for (const [path, entry] of object) {
-    if (typeof content === "string") {
-      filesObj[path] = entry.content;
-    }
-  }
-
-  res.json({
+  return {
     _id: project._id,
     name: project.name,
     description: project.description,
-    files: filesObj,
+    files: filesToObject(project.files),
     messages: project.messages,
     version: project.version,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
-  });
+  };
 }
 
-// Create a new project from prompt
-export async function publishProject(req, res) {
-  // check user
-  checkUser(req, res);
+// Publish a project
+export async function publishProject(id, userId) {
+  requireUser(userId);
 
   const project = await Project.findOneAndUpdate(
-    { _id: req.params.id, owner: req.user.userId },
+    { _id: id, owner: userId },
     { published: true },
-    { returnDocument: after },
+    { returnDocument: "after" },
   );
 
   if (!project) {
-    res.status(404).json({
-      error: "Project not found",
-    });
-
-    return;
+    throw new HttpError(404, "Project not found");
   }
 
-  const filesObj = {};
-  for (const [path, entry] of Object.entries(project.files)) {
-    filesObj[path] = entry.content;
-  }
-
-  res.json({
+  return {
     _id: project._id,
     name: project.name,
     description: project.description,
     version: project.version,
-  });
+  };
 }
 
-// Get public project
-export async function getPublicProject(req, res) {
-  const project = await Project.findById(req.params.id);
+// Get a publicly published project (no auth required)
+export async function getPublicProject(id) {
+  const project = await Project.findById(id);
 
   if (!project) {
-    res.status(404).json({
-      error: "Project not found",
-    });
-    return;
+    throw new HttpError(404, "Project not found");
   }
 
   if (!project.published) {
-    res.status(403).json({
-      error: "Project is not publised",
-    });
-    return;
+    throw new HttpError(403, "Project is not published");
   }
 
-  const filesObj = {};
-  for (const [path, entry] of Object.entries(project.files)) {
-    filesObj[path] = entry.content;
-  }
-
-  res.json({
+  return {
     _id: project._id,
     name: project.name,
     description: project.description,
-    files: filesObj,
+    files: filesToObject(project.files),
     version: project.version,
-  });
+  };
 }
