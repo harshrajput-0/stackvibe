@@ -7,7 +7,9 @@ export function CodeView() {
         {CODE_TREE.map((path, index) => (
           <div
             className={`flex items-center gap-1.75 rounded-[5px] px-2 py-1.5 font-mono text-xs ${
-              index === 0 ? "bg-gray-100 font-medium text-black" : "text-gray-700"
+              index === 0
+                ? "bg-gray-100 font-medium text-black"
+                : "text-gray-700"
             }`}
             key={path}
           >
@@ -19,19 +21,26 @@ export function CodeView() {
         <span className="text-gray-500">{"// app/page.jsx"}</span>
         <br />
         <span className="font-semibold text-white">import</span> {"Navbar "}
-        <span className="font-semibold text-white">from</span> {"'./components/Navbar';"}
+        <span className="font-semibold text-white">from</span>{" "}
+        {"'./components/Navbar';"}
         <br />
         <span className="font-semibold text-white">import</span> {"Hero "}
-        <span className="font-semibold text-white">from</span> {"'./components/Hero';"}
+        <span className="font-semibold text-white">from</span>{" "}
+        {"'./components/Hero';"}
         <br />
         <span className="font-semibold text-white">import</span> {"Features "}
-        <span className="font-semibold text-white">from</span> {"'./components/Features';"}
+        <span className="font-semibold text-white">from</span>{" "}
+        {"'./components/Features';"}
         <br />
         <span className="font-semibold text-white">import</span> {"Footer "}
-        <span className="font-semibold text-white">from</span> {"'./components/Footer';"}
+        <span className="font-semibold text-white">from</span>{" "}
+        {"'./components/Footer';"}
         <br />
         <br />
-        <span className="font-semibold text-white">export default function</span> {"Page() {"}
+        <span className="font-semibold text-white">
+          export default function
+        </span>{" "}
+        {"Page() {"}
         <br />
         {"  "}
         <span className="font-semibold text-white">return</span> {"("}

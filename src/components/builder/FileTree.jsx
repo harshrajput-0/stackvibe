@@ -23,10 +23,12 @@ export function FileTree() {
             }`}
             key={item.name}
           >
-            <span className={`h-2 w-2 flex-none rounded-sm ${DOT_COLORS[item.ext] ?? "bg--gray-300"}`} />
+            <span
+              className={`h-2 w-2 flex-none rounded-sm ${DOT_COLORS[item.ext] ?? "bg--gray-300"}`}
+            />
             {item.name}
           </div>
-        )
+        ),
       )}
     </div>
   );

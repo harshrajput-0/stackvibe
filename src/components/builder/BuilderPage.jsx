@@ -12,7 +12,7 @@ import { useGeneration } from "@/hooks/useGeneration";
 import { useChat } from "@/hooks/useChat";
 import { useBuilderView } from "@/hooks/useBuilderView";
 import { usePublishModal } from "@/hooks/usePublishModal";
-import { getProjectHero } from "@/app/services/projectService";
+import { getProjectHero } from "@/app/api-client/projectService";
 import { INITIAL_CHAT_MESSAGES } from "@/lib/constants";
 
 export function BuilderPage({ projectSlug }) {
@@ -98,13 +98,21 @@ export function BuilderPage({ projectSlug }) {
             />
           )}
           {view.mainView === "preview" && (
-            <PreviewView chromeUrl={chromeUrl} siteName={projectName} hero={hero} />
+            <PreviewView
+              chromeUrl={chromeUrl}
+              siteName={projectName}
+              hero={hero}
+            />
           )}
           {view.mainView === "code" && <CodeView />}
         </div>
       </div>
 
-      <PublishModal isOpen={publishModal.isOpen} onClose={publishModal.close} publishUrl={chromeUrl} />
+      <PublishModal
+        isOpen={publishModal.isOpen}
+        onClose={publishModal.close}
+        publishUrl={chromeUrl}
+      />
     </div>
   );
 }

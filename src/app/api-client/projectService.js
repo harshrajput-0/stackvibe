@@ -8,7 +8,9 @@ export function listProjects() {
 }
 
 export function getProjectBySlug(slug) {
-  return MOCK_PROJECTS.find((project) => slugify(project.name) === slug) || null;
+  return (
+    MOCK_PROJECTS.find((project) => slugify(project.name) === slug) || null
+  );
 }
 
 export function getProjectHero(slug) {

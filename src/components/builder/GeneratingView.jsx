@@ -1,11 +1,19 @@
 import { Check } from "lucide-react";
 import { PLANNED_FILES } from "@/lib/constants";
 
-export function GeneratingView({ projectName, percent, doneCount, total, fileStatuses }) {
+export function GeneratingView({
+  projectName,
+  percent,
+  doneCount,
+  total,
+  fileStatuses,
+}) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center p-6.5">
       <div className="w-full max-w-115 rounded-lg border border-gray-200 bg-white p-[28px_26px] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-        <h3 className="text-[17px] font-bold tracking-[-0.01em]">AI Agent is building…</h3>
+        <h3 className="text-[17px] font-bold tracking-[-0.01em]">
+          AI Agent is building…
+        </h3>
         <p className="mt-1.25 text-[13px] text-gray-500">
           Writing production-ready code for <strong>{projectName}</strong>
         </p>
@@ -44,7 +52,9 @@ export function GeneratingView({ projectName, percent, doneCount, total, fileSta
                 <div className="min-w-0">
                   <div
                     className={`font-mono text-xs transition-colors duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                      status === "done" || status === "active" ? "text-black" : "text-gray-300"
+                      status === "done" || status === "active"
+                        ? "text-black"
+                        : "text-gray-300"
                     }`}
                   >
                     {file.file}

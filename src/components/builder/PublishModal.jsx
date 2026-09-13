@@ -30,7 +30,9 @@ export function PublishModal({ isOpen, onClose, publishUrl }) {
       >
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-[17px] font-bold tracking-[-0.01em]">Publish your site</h3>
+            <h3 className="text-[17px] font-bold tracking-[-0.01em]">
+              Publish your site
+            </h3>
             <div className="mt-1.25 text-[13px] text-(--gray-500)">
               Your changes will go live at this address.
             </div>

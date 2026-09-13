@@ -1,6 +1,5 @@
 import { CHAT_REPLY_DELAY_MS } from "@/lib/constants";
 
-
 export function requestAssistantReply(userText, onReply) {
   const timeoutId = setTimeout(() => {
     onReply({

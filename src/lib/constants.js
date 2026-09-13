@@ -17,8 +17,6 @@ export const PROMPT_CHIPS = [
   },
 ];
 
-
-
 export const MOCK_PROJECTS = [
   {
     id: "portfolio",
@@ -45,12 +43,14 @@ export const DEFAULT_SITE_HERO = {
   sub: "A small neighborhood roastery serving single-origin coffee and fresh pastry daily.",
 };
 
-
 export const INITIAL_CHAT_MESSAGES = [
   {
     id: "welcome-status",
     role: "ai",
-    statusLines: ["Created project structure", "Generated homepage and components"],
+    statusLines: [
+      "Created project structure",
+      "Generated homepage and components",
+    ],
   },
   {
     id: "welcome-text",

@@ -1,59 +1,40 @@
-const PATHS = [
-  "M0.87793 22.8482V40.4288L11.7198 34.2753V23.4334L28.1291 14.0567L17.5814 7.61719L5.98284 14.1282C2.82985 15.8982 0.87793 19.2324 0.87793 22.8482Z",
-  "M63 47.4682V29.8876L52.1581 36.0411V46.883L35.7488 56.2597L46.2965 62.6992L57.8951 56.1882C61.0481 54.4182 63 51.084 63 47.4682Z",
-  "M62.5224 22.1214L62.707 24.614L51.8652 30.4744V23.4419L21.0977 6.43948L31.6454 0L57.3558 14.0907C60.3274 15.7193 62.2721 18.742 62.5224 22.1214Z",
-  "M0.184636 48.7927L0 46.3001L10.8419 40.4396V47.4722L41.6093 64.4746L31.0616 70.9141L5.35122 56.8233C2.37962 55.1947 0.434958 52.172 0.184636 48.7927Z",
-];
-
-const LATTICE_LINES = [
-  ["31.5", "17.5", "47.09", "26.5"],
-  ["31.5", "17.5", "47.09", "44.5"],
-  ["31.5", "17.5", "31.5", "53.5"],
-  ["31.5", "17.5", "15.91", "44.5"],
-  ["31.5", "17.5", "15.91", "26.5"],
-  ["47.09", "26.5", "47.09", "44.5"],
-  ["47.09", "26.5", "31.5", "53.5"],
-  ["47.09", "26.5", "15.91", "44.5"],
-  ["47.09", "26.5", "15.91", "26.5"],
-  ["47.09", "44.5", "31.5", "53.5"],
-  ["47.09", "44.5", "15.91", "44.5"],
-  ["47.09", "44.5", "15.91", "26.5"],
-  ["31.5", "53.5", "15.91", "44.5"],
-  ["31.5", "53.5", "15.91", "26.5"],
-  ["15.91", "44.5", "15.91", "26.5"],
-];
-
-const LATTICE_DOTS = [
-  ["31.5", "17.5"],
-  ["47.09", "26.5"],
-  ["47.09", "44.5"],
-  ["31.5", "53.5"],
-  ["15.91", "44.5"],
-  ["15.91", "26.5"],
-  ["31.5", "35.5"],
-];
-
 /**
- * The StackVibe brand mark. `color` selects white (for dark backgrounds)
- * or black (for light backgrounds), matching the mockup's two variants.
+ * The StackVibe brand mark — three stacked layers with a "vibe" wave
+ * notch cut through the front layer. `color` selects white (for dark
+ * backgrounds) or black (for light backgrounds), matching the mockup's
+ * two variants. The wave notch always renders in the color that reads
+ * as the page background showing through the front layer.
  */
-export function Logo({ width = 19, height = 21.4, color = "white" }) {
-  const fill = color === "white" ? "white" : "#0A0A0A";
+export function Logo({
+  width = 19,
+  height = 19.4,
+  color = "white",
+  className,
+}) {
+  const fill = color === "white" ? "#FFFFFF" : "#111111";
+  const notch = color === "white" ? "#0A0A0A" : "#FFFFFF";
+
   return (
-    <svg width={width} height={height} viewBox="0 0 63 71" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      {PATHS.map((d) => (
-        <path key={d.slice(0, 12)} d={d} fill={fill} />
-      ))}
-      <g stroke={fill} strokeOpacity="0.4" strokeWidth="0.35" fill="none">
-        {LATTICE_LINES.map(([x1, y1, x2, y2]) => (
-          <line key={`${x1}-${y1}-${x2}-${y2}`} x1={x1} y1={y1} x2={x2} y2={y2} />
-        ))}
-      </g>
-      <g fill={fill} fillOpacity="0.65">
-        {LATTICE_DOTS.map(([cx, cy]) => (
-          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="0.9" />
-        ))}
-      </g>
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 90 92"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M45 4 L86 24 L45 44 L4 24 Z" fill={fill} opacity="0.25" />
+      <path d="M45 26 L86 46 L45 66 L4 46 Z" fill={fill} opacity="0.55" />
+      <path d="M45 48 L86 68 L45 88 L4 68 Z" fill={fill} />
+      <path
+        d="M18 68 Q27 58 36 68 T54 68 T72 68"
+        fill="none"
+        stroke={notch}
+        strokeWidth="3.2"
+        strokeLinecap="round"
+        opacity="0.95"
+      />
     </svg>
   );
 }

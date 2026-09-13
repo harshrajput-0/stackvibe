@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { INITIAL_CHAT_MESSAGES } from "@/lib/constants";
-import { requestAssistantReply } from "@/app/services/chatService";
+import { requestAssistantReply } from "@/app/api-client/chatService";
 
 let messageIdCounter = 0;
 function nextId() {
   messageIdCounter += 1;
   return `msg-${messageIdCounter}`;
 }
-
 
 // Owns the chat panel's message list and input value.
 // Delegates the "what does the assistant say back" decision to chatService.

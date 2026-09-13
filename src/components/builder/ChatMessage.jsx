@@ -11,7 +11,9 @@ export function ChatMessage({ message }) {
 
   return (
     <div className="max-w-[92%] text-[13.5px] leading-[1.55] text-gray-800">
-      <div className="mb-1.25 text-[11px] font-semibold tracking-[0.01em] text-gray-400">StackVibe</div>
+      <div className="mb-1.25 text-[11px] font-semibold tracking-[0.01em] text-gray-400">
+        StackVibe
+      </div>
       {message.statusLines?.map((line, index) => (
         <div
           className="flex items-center gap-1.75 py-0.5 font-mono text-xs text-gray-500"

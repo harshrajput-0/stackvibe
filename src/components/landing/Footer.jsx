@@ -5,4 +5,4 @@ export const Footer = () => {
       <span>Made for builders</span>
     </div>
   );
-}
+};

@@ -17,7 +17,9 @@ export function PreviewView({ chromeUrl, siteName, hero }) {
 
         <div className="flex-1 overflow-y-auto">
           <div className="flex items-center justify-between border-b border-gray-100 px-10 py-5">
-            <div className="text-[15px] font-bold tracking-[-0.01em]">{siteName}</div>
+            <div className="text-[15px] font-bold tracking-[-0.01em]">
+              {siteName}
+            </div>
             <div className="flex gap-6.5 text-[13px] text-gray-500">
               <span>Menu</span>
               <span>About</span>
@@ -26,8 +28,12 @@ export function PreviewView({ chromeUrl, siteName, hero }) {
           </div>
 
           <div className="px-7.5 py-17.5 text-center">
-            <h1 className="text-[clamp(26px,3vw,36px)] font-bold tracking-[-0.02em]">{hero.h1}</h1>
-            <p className="mx-auto mt-3 max-w-105 text-sm text-gray-500">{hero.sub}</p>
+            <h1 className="text-[clamp(26px,3vw,36px)] font-bold tracking-[-0.02em]">
+              {hero.h1}
+            </h1>
+            <p className="mx-auto mt-3 max-w-105 text-sm text-gray-500">
+              {hero.sub}
+            </p>
             <Button variant="primary" className="mt-5.5">
               View menu
             </Button>

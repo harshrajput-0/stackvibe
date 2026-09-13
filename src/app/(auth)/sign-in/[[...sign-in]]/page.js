@@ -4,9 +4,9 @@ import { SignInForm } from "@/components/auth/SignInForm";
 const page = () => {
   return (
     <AuthScreen>
-        <SignInForm />
+      <SignInForm />
     </AuthScreen>
-  )
-}
+  );
+};
 
-export default page
+export default page;
