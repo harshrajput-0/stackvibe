@@ -73,7 +73,7 @@ async function handleGenerate() {
     setValue("");
 
     // Open the newly created project using its MongoDB ID.
-    router.push(`/builder/${newProject._id}`);
+    router.push(`/builder/${newProject.slug}`);
   } catch (error) {
     console.error("Failed to create project", error);
     setError("Failed to create project.");

@@ -9,6 +9,27 @@ function requireUser(userId) {
   }
 }
 
+function createProjectName(prompt) {
+  const words = prompt
+    .trim()
+    .split(/\s+/)
+    .slice(0, 4);
+
+  const name = words.join(" ");
+
+  return name || "Untitled Project";
+}
+
+function createSlug(name) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function filesToObject(files) {
   const filesObj = {};
   for (const [path, entry] of Object.entries(files || {})) {
@@ -21,40 +42,47 @@ function filesToObject(files) {
 export async function createProject(userId, prompt) {
   requireUser(userId);
 
-  if (!prompt) {
+  if (!prompt || !prompt.trim()) {
     throw new HttpError(400, "Prompt is required!");
   }
 
-  // Create the project in DB immediately with "pending" status
-  const project = await Project.create({
-    name: "Planning Project...",
-    files: {},
-    messages: [
-      { role: "user", content: prompt },
-      { role: "assistant", content: "Planning the project..." },
-    ],
-    version: 0,
-    owner: userId,
-    status: "pending",
-    filesPlanned: [],
-    filesGenerated: [],
-    currentFile: null,
-    error: null,
-  });
+  // Generating slug from prompt
+  const name = createProjectName(prompt);
+  const slug = createSlug(name);
 
-  // Kick off generation in the background; failures are logged, not awaited
-  runBackgroundGeneration(project._id.toString(), prompt).catch((err) => {
-    console.error(
-      `[Assistant] Unable to generate the project ${project._id}:`,
-      err,
-    );
-  });
+  // Create the project in DB immediately with "pending" status
+const project = await Project.create({
+  name,
+  slug,
+  description: prompt,
+  files: {},
+  messages: [
+    { role: "user", content: prompt },
+    { role: "assistant", content: "Planning the project..." },
+  ],
+  version: 0,
+  owner: userId,
+  status: "pending",
+  filesPlanned: [],
+  filesGenerated: [],
+  currentFile: null,
+  error: null,
+});
+
+  // Kick off generation in the background
+  // runBackgroundGeneration(project._id.toString(), prompt).catch((err) => {
+  //   console.error(
+  //     `[Assistant] Unable to generate the project ${project._id}:`,
+  //     err,
+  //   );
+  // });
 
   return {
     _id: project._id,
     name: project.name,
+    slug: project.slug,
     description: project.description,
-    files: {},
+    files: project.files,
     messages: project.messages,
     version: project.version,
     status: project.status,

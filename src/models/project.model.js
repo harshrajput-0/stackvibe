@@ -76,6 +76,12 @@ const projectSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+
+    slug: {
+      type: String,
+      required: true,
+      trim: true,
+    },
   },
   {
     timestamps: true,
