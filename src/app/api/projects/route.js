@@ -10,6 +10,7 @@ export async function GET() {
   try {
     await connectDB();
     const { userId } = await auth();
+//     console.log("Clerk userId:", userId);
     const projects = await listProjects(userId);
     return Response.json(projects);
   } catch (err) {

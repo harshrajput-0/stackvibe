@@ -26,9 +26,9 @@ const projectSchema = new mongoose.Schema(
     },
 
     owner: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: String,
       required: true,
+      index: true,
     },
 
     files: {

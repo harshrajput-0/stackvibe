@@ -1,12 +1,12 @@
 import { ArrowUp } from "lucide-react";
 
-export function PromptBox({ value, onChange, onSubmit }) {
+export function PromptBox({ value, onChange, onSubmit, isSubmitting = false }) {
   const isEmpty = !value.trim();
 
   function handleKeyDown(event) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      if (!isEmpty) onSubmit();
+      if (!isEmpty && !isSubmitting) onSubmit();
     }
   }
 
@@ -25,7 +25,7 @@ export function PromptBox({ value, onChange, onSubmit }) {
           className="flex size-9 items-center justify-center rounded-full bg-black! text-white! transition-[background,transform] duration-150 ease hover:bg-gray-800 active:scale-[0.94] disabled:cursor-not-allowed disabled:bg-gray-300"
           id="generate-btn"
           onClick={onSubmit}
-          disabled={isEmpty}
+          disabled={isEmpty || isSubmitting}
           aria-label="Generate website"
         >
           <ArrowUp size={15} strokeWidth={2} />
