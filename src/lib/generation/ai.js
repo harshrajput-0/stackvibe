@@ -5,10 +5,10 @@ import {
   FileCodeSchema,
   FilePlanSchema,
   RevisionResultSchema,
-} from "../validators/aiSchema";
-import { buildFileCodeSystem, FILE_PLAN_SYSTEM, REVISE_SYSTEM } from "./prompt";
-import { normalizeContent } from "./contentNormalizer";
-import { validateAndFixCode, validateRevisionContent } from "./codeValidator";
+} from "@/lib/validator/aiSchema.js";
+import { buildFileCodeSystem, FILE_PLAN_SYSTEM, REVISE_SYSTEM } from "./prompt.js";
+import { normalizeContent } from "./contentNormalizer.js";
+import { validateAndFixCode, validateRevisionContent } from "./codeValidator.js";
 
 // ----------------------- OpenRouter Model Client Setup --------
 const MODEL = process.env.OPENROUTER_MODEL || "openrouter/free";

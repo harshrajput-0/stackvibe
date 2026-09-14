@@ -63,34 +63,33 @@ export async function createProject(userId, prompt) {
   };
 }
 
-// Background AI generation job. Not yet implemented.
+// Background AI generation job
 export async function runBackgroundGeneration(projectId, prompt) {
   try {
-    console.log(`[Aissistant]: Start Generation for project ${projectId}`);
+    console.log(`[Assistant]: Start Generation for project ${projectId}`);
 
     const result = await generateProject(prompt, {
       onPlan: async (plan) => {
         console.log(`[Assistant] Plan created for the project ${projectId}.
           Planned ${plan.files.length} files`);
-          
-          const fileList = plan.files.map((f) => `- \`${f.path}\`: ${f.description}`).join("\n");
 
-          await Project.findByIdAndUpdate(projectId, {
-            name: plan.projectName || "Generated Project",
-            status: "generating",
-            filesPlanned: plan.files,
-            $push: {
-              messages: {
-                role: "assistant",
-                content: `Planned website structure:\n${fileList}`,
-                timestamp: new Date(),
-              }
+        const fileList = plan.files.map((f) => `- \`${f.path}\`: ${f.description}`).join("\n");
+
+        await Project.findByIdAndUpdate(projectId, {
+          name: plan.projectName || "Generated Project",
+          status: "generating",
+          filesPlanned: plan.files,
+          $push: {
+            messages: {
+              role: "assistant",
+              content: `Planned website structure:\n${fileList}`,
+              timestamp: new Date(),
             }
-          })
+          }
+        })
       },
 
-
-      onFileStart: async(path) => {
+      onFileStart: async (path) => {
         console.log(`[Assistant] Starting file ${path} for project ${projectId}`);
 
         await Project.findByIdAndUpdate(projectId, {
@@ -98,14 +97,17 @@ export async function runBackgroundGeneration(projectId, prompt) {
         })
       },
 
+      // FIXED: this condition was inverted (`if (!project)`), which meant
+      // generated file content never got saved on the normal/happy path,
+      // and threw on `project.files` when the project genuinely wasn't found.
       onFileComplete: async (path, code) => {
-        console.log(`[Assistant] Finished files ${path} for project ${projectId}`);
+        console.log(`[Assistant] Finished file ${path} for project ${projectId}`);
 
         const project = await Project.findById(projectId);
 
-        if (!project) {
+        if (project) {
           project.files = project.files || {};
-          project.files[path] = { content: code, hash: hashContent(code)};
+          project.files[path] = { content: code, hash: hashContent(code) };
           project.filesGenerated = [...(project.filesGenerated || []), path];
           project.messages.push({
             role: "assistant",
@@ -124,7 +126,7 @@ export async function runBackgroundGeneration(projectId, prompt) {
     const project = await Project.findById(projectId);
 
     if (project) {
-      project.status = "completed",
+      project.status = "completed";
       project.version = 1;
       if (result.description) {
         project.name = result.description;
@@ -132,7 +134,7 @@ export async function runBackgroundGeneration(projectId, prompt) {
 
       project.messages.push({
         role: "assistant",
-        content: "Website generated sucessfully! You can view and edit files now",
+        content: "Website generated successfully! You can view and edit files now",
         timestamp: new Date(),
       })
       await project.save();
@@ -281,4 +283,126 @@ export async function getPublicProject(id) {
     files: filesToObject(project.files),
     version: project.version,
   };
+}
+
+// Build a compact manifest (path + hash + size) instead of sending full
+// file contents — used to give the AI a cheap overview of the project.
+export function buildManifest(files) {
+  const manifest = [];
+
+  for (const [path, entry] of Object.entries(files || {})) {
+    manifest.push({ path, hash: entry.hash, size: entry.content.length });
+  }
+  return manifest;
+}
+
+// Send a revision prompt and apply the AI's resulting operations
+export async function chatOnProject(id, userId, prompt) {
+  requireUser(userId);
+
+  if (!prompt || typeof prompt !== "string") {
+    throw new HttpError(400, "Prompt is required");
+  }
+
+  const project = await Project.findOne({ _id: id, owner: userId });
+
+  if (!project) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  // Set status to revising and save the user's prompt immediately
+  project.status = "revising";
+  project.messages.push({
+    role: "user",
+    content: prompt,
+    timestamp: new Date(),
+  });
+  await project.save();
+
+  try {
+    // Build compact manifest (path + hash + size) instead of sending all code
+    const manifest = buildManifest(project.files);
+
+    const relevantFiles = {};
+    for (const [path, entry] of Object.entries(project.files || {})) {
+      relevantFiles[path] = entry.content;
+    }
+
+    // Recent messages for context
+    const recentMessages = project.messages.slice(-4).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    console.log(
+      `Revising project ${project._id}: "${prompt.slice(0, 80)}..." (${manifest.length} files)`,
+    );
+
+    // Call AI with manifest + relevant files
+    const result = await reviseProject(
+      prompt,
+      manifest,
+      relevantFiles,
+      recentMessages,
+    );
+
+    console.log(
+      `[Assistant] got ${result.operations.length} operations: ${result.description}`,
+    );
+
+    // Apply operations on file map
+    const { files: updatedFiles, applied, errors } = applyOperations(
+      project.files,
+      result.operations,
+    );
+
+    if (errors.length > 0) {
+      console.log(`[Diff] Error applying operations:`, errors);
+    }
+
+    // Update project in DB
+    project.files = updatedFiles;
+    project.markModified("files");
+    project.version += 1;
+    project.status = "completed";
+    project.messages.push({
+      role: "assistant",
+      content:
+        result.description +
+        (errors.length > 0
+          ? `\n\nSome operations failed: ${errors.join(", ")}`
+          : ""),
+      timestamp: new Date(),
+    });
+
+    await project.save();
+
+    // Return the updated project
+    const filesObj = {};
+    for (const [path, entry] of Object.entries(project.files)) {
+      filesObj[path] = entry.content;
+    }
+
+    return {
+      _id: project._id,
+      name: project.name,
+      description: project.description,
+      files: filesObj,
+      messages: project.messages,
+      version: project.version,
+      status: project.status,
+      applied,
+      errors,
+      aiDescription: result.description,
+    };
+  } catch (error) {
+    console.error(`[AI Revision Error] ${error.message}`);
+
+    await Project.findByIdAndUpdate(project._id, {
+      status: "failed",
+      error: error.message,
+    });
+
+    throw new HttpError(500, error.message || "Failed to process revision request");
+  }
 }
