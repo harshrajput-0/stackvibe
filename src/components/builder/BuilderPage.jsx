@@ -12,7 +12,7 @@ import { useGeneration } from "@/hooks/useGeneration";
 import { useChat } from "@/hooks/useChat";
 import { useBuilderView } from "@/hooks/useBuilderView";
 import { usePublishModal } from "@/hooks/usePublishModal";
-import { getProjectHero } from "@/app/api-client/projectService";
+import { getProjectHero } from "@/api-client/projectService";
 import { INITIAL_CHAT_MESSAGES } from "@/lib/constants";
 
 export function BuilderPage({ projectSlug }) {

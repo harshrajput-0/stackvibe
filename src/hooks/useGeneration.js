@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { runGenerationSequence } from "@/app/api-client/generationService";
+import { runGenerationSequence } from "@/api-client/generationService";
 import { PLANNED_FILES } from "@/lib/constants";
 
 // Owns all state for the "AI Agent is building..." sequence:

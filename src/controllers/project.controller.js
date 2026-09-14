@@ -1,6 +1,7 @@
 import Project from "@/models/project.model.js";
 import { hashContent } from "@/lib/utils/hashContent.js";
 import { HttpError } from "@/lib/httpErrors.js";
+import { generateProject } from "@/lib/generation/ai";
 
 function requireUser(userId) {
   if (!userId) {
@@ -64,7 +65,93 @@ export async function createProject(userId, prompt) {
 
 // Background AI generation job. Not yet implemented.
 export async function runBackgroundGeneration(projectId, prompt) {
-  // TODO: plan files, generate code, and save results onto the project
+  try {
+    console.log(`[Aissistant]: Start Generation for project ${projectId}`);
+
+    const result = await generateProject(prompt, {
+      onPlan: async (plan) => {
+        console.log(`[Assistant] Plan created for the project ${projectId}.
+          Planned ${plan.files.length} files`);
+          
+          const fileList = plan.files.map((f) => `- \`${f.path}\`: ${f.description}`).join("\n");
+
+          await Project.findByIdAndUpdate(projectId, {
+            name: plan.projectName || "Generated Project",
+            status: "generating",
+            filesPlanned: plan.files,
+            $push: {
+              messages: {
+                role: "assistant",
+                content: `Planned website structure:\n${fileList}`,
+                timestamp: new Date(),
+              }
+            }
+          })
+      },
+
+
+      onFileStart: async(path) => {
+        console.log(`[Assistant] Starting file ${path} for project ${projectId}`);
+
+        await Project.findByIdAndUpdate(projectId, {
+          currentFile: path,
+        })
+      },
+
+      onFileComplete: async (path, code) => {
+        console.log(`[Assistant] Finished files ${path} for project ${projectId}`);
+
+        const project = await Project.findById(projectId);
+
+        if (!project) {
+          project.files = project.files || {};
+          project.files[path] = { content: code, hash: hashContent(code)};
+          project.filesGenerated = [...(project.filesGenerated || []), path];
+          project.messages.push({
+            role: "assistant",
+            content: `Created file "${path}"`,
+            timestamp: new Date(),
+          });
+          project.currentFile = null;
+          project.markModified("files");
+          await project.save();
+        }
+      }
+    })
+
+    console.log(`[Assistant] Successfully generated project ${projectId}`);
+
+    const project = await Project.findById(projectId);
+
+    if (project) {
+      project.status = "completed",
+      project.version = 1;
+      if (result.description) {
+        project.name = result.description;
+      }
+
+      project.messages.push({
+        role: "assistant",
+        content: "Website generated sucessfully! You can view and edit files now",
+        timestamp: new Date(),
+      })
+      await project.save();
+    }
+  } catch (error) {
+    console.error(`[Assistant] Cannot generate files for project ${projectId}:`, error);
+
+    await Project.findByIdAndUpdate(projectId, {
+      status: "failed",
+      error: error.message,
+      $push: {
+        messages: {
+          role: "assistant",
+          content: `Generation failed: ${error.message}`,
+          timestamp: new Date(),
+        }
+      }
+    })
+  }
 }
 
 // List all projects owned by the user

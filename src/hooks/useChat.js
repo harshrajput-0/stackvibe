@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { INITIAL_CHAT_MESSAGES } from "@/lib/constants";
-import { requestAssistantReply } from "@/app/api-client/chatService";
+import { requestAssistantReply } from "@/api-client/chatService";
 
 let messageIdCounter = 0;
 function nextId() {
