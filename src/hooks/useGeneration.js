@@ -1,69 +1,82 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { runGenerationSequence } from "@/api-client/generationService";
-import { PLANNED_FILES } from "@/lib/constants";
+import { useCallback, useRef, useState } from "react";
+import { pollProjectGeneration } from "@/api-client/generationService";
 
-// Owns all state for the "AI Agent is building..." sequence:
-// progress percent, per-file status, and the resulting log messages.
-// The actual timing/business logic lives in generationService.
+// Owns all state for the "AI Agent is building..." sequence by polling the
+// real project record (by slug) while the server-side generation job runs,
+// rather than simulating progress with timers.
 
 export function useGeneration() {
-  const [percent, setPercent] = useState(0);
-  const [doneCount, setDoneCount] = useState(0);
-  const [fileStatuses, setFileStatuses] = useState(() =>
-    PLANNED_FILES.map(() => "pending"),
-  );
-  const [logEntries, setLogEntries] = useState([]);
+  const [plannedFiles, setPlannedFiles] = useState([]);
+  const [filesGenerated, setFilesGenerated] = useState([]);
+  const [currentFile, setCurrentFile] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [error, setError] = useState(null);
   const cancelRef = useRef(null);
 
-  const start = useCallback((onComplete) => {
+  // Starts monitoring the generation process for a project.
+  const start = useCallback((slug, onComplete) => {
+    // If another polling process is already running, stop it first.
     cancelRef.current?.();
 
-    setPercent(0);
-    setDoneCount(0);
-    setFileStatuses(PLANNED_FILES.map(() => "pending"));
-    setLogEntries([]);
+    // Reset all previous generation data.
+    setPlannedFiles([]);
+    setFilesGenerated([]);
+    setCurrentFile(null);
     setIsComplete(false);
+    setError(null);
 
-    cancelRef.current = runGenerationSequence({
-      onFileStart: (index) => {
-        setFileStatuses((prev) => {
-          const next = [...prev];
-          next[index] = "active";
-          return next;
-        });
+    // Get project's latest status from backend
+    cancelRef.current = pollProjectGeneration(slug, {
+      // Runs whenever fresh project data is received.
+      onUpdate: (project) => {
+        setPlannedFiles(project.filesPlanned || []);
+        setFilesGenerated(project.filesGenerated || []);
+        setCurrentFile(project.currentFile || null);
       },
-      onFileComplete: (index, file, pct) => {
-        setFileStatuses((prev) => {
-          const next = [...prev];
-          next[index] = "done";
-          return next;
-        });
-        setDoneCount(index + 1);
-        setPercent(pct);
-        setLogEntries((prev) => [
-          ...prev,
-          { id: `file-${index}`, file: file.file },
-        ]);
-      },
-      onComplete: () => {
+
+      // Run when generation is finished
+      onComplete: (project) => {
+        setPlannedFiles(project.filesPlanned || []);
+        setFilesGenerated(project.filesGenerated || []);
+        setCurrentFile(null);
         setIsComplete(true);
-        onComplete?.();
+        onComplete?.(project);
+      },
+
+      // Run when error occured
+      onError: (err) => {
+        setError(err.message || "Generation failed");
       },
     });
   }, []);
 
-  useEffect(() => () => cancelRef.current?.(), []);
+  // Stop current generation
+  const stop = useCallback(() => {
+    cancelRef.current?.();
+  }, []);
+
+  const total = plannedFiles.length;
+  const doneCount = filesGenerated.length;
+  const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;              // Calculate the generation progress percentage
+
+  // Create a status for every planned file
+  const fileStatuses = plannedFiles.map((file) => {
+    if (filesGenerated.includes(file.path)) return "done";
+    if (currentFile === file.path) return "active";
+    return "pending";
+  });
 
   return {
+    plannedFiles,
     percent,
     doneCount,
-    total: PLANNED_FILES.length,
+    total,
     fileStatuses,
-    logEntries,
     isComplete,
+    error,
     start,
+    stop,
   };
 }
