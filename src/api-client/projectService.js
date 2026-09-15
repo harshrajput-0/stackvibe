@@ -1,10 +1,6 @@
-import { MOCK_PROJECTS, DEFAULT_SITE_HERO } from "@/lib/constants";
-import { slugify } from "@/lib/utils/slugify";
-
-// Mock Project Data
-
+// GET PROJECT LIST
 export async function listProjects() {
-  const response = await fetch("api/projects");
+  const response = await fetch("/api/projects");
 
   if (!response.ok) {
     throw new Error("Failed to fetch projects");
@@ -13,7 +9,7 @@ export async function listProjects() {
   return response.json();
 }
 
-
+// CREATE PROJECT
 export async function createProject(prompt) {
   const response = await fetch("/api/projects", {
     method: "POST",
@@ -30,13 +26,14 @@ export async function createProject(prompt) {
   return response.json();
 }
 
-export function getProjectBySlug(slug) {
-  return (
-    MOCK_PROJECTS.find((project) => slugify(project.name) === slug) || null
-  );
-}
+// GET PROJECT BY SLUG
+export async function getProjectBySlug(slug) {
+  const response = await fetch(`/api/projects/slug/${slug}`);
 
-export function getProjectHero(slug) {
-  const project = getProjectBySlug(slug);
-  return project?.hero ?? DEFAULT_SITE_HERO;
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.Error || "Failded to fetch the projects");
+  }
+
+  return response.json();
 }
