@@ -73,12 +73,12 @@ const project = await Project.create({
   // Kick off generation in the background 
   //
   //
-  // runBackgroundGeneration(project._id.toString(), prompt).catch((err) => {
-  //   console.error(
-  //     `[Assistant] Unable to generate the project ${project._id}:`,
-  //     err,
-  //   );
-  // });
+  runBackgroundGeneration(project._id.toString(), prompt).catch((err) => {
+    console.error(
+      `[Assistant] Unable to generate the project ${project._id}:`,
+      err,
+    );
+  });
 
   return {
     _id: project._id,

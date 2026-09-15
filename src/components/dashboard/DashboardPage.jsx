@@ -9,7 +9,6 @@ import { ChipRow } from "./ChipRow";
 import { ProjectGrid } from "./ProjectGrid";
 
 import { useDashboardPrompt } from "@/hooks/useDashboardPrompt";
-import { slugify } from "@/lib/utils/slugify";
 
 import {
   listProjects,
@@ -72,8 +71,11 @@ async function handleGenerate() {
     // Clear the prompt after successful creation.
     setValue("");
 
-    // Open the newly created project using its MongoDB ID.
-    router.push(`/builder/${newProject.slug}`);
+    // Open the newly created project by slug, and flag it so the builder
+    // page kicks off/polls the generation pipeline.
+    router.push(
+      `/builder/${newProject.slug}?mode=generate&name=${encodeURIComponent(newProject.name)}`,
+    );
   } catch (error) {
     console.error("Failed to create project", error);
     setError("Failed to create project.");
@@ -82,9 +84,10 @@ async function handleGenerate() {
   }
 }
 
-  // Open an existing project from the project grid.
+  // Open an existing project from the project grid — slug routing, not
+  // the Mongo _id.
   function handleOpenProject(project) {
-    router.push(`/builder/${project._id}`);
+    router.push(`/builder/${project.slug}`);
   }
 
   return (
