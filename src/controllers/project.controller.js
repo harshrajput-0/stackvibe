@@ -1,7 +1,8 @@
 import Project from "@/models/project.model.js";
 import { hashContent } from "@/lib/utils/hashContent.js";
 import { HttpError } from "@/lib/httpErrors.js";
-import { generateProject } from "@/lib/generation/ai";
+import { generateProject, reviseProject } from "@/lib/generation/ai.js";
+import { applyOperations } from "@/lib/generation/diff.js";
 
 function requireUser(userId) {
   if (!userId) {
@@ -69,7 +70,9 @@ const project = await Project.create({
   error: null,
 });
 
-  // Kick off generation in the background
+  // Kick off generation in the background 
+  //
+  //
   // runBackgroundGeneration(project._id.toString(), prompt).catch((err) => {
   //   console.error(
   //     `[Assistant] Unable to generate the project ${project._id}:`,
@@ -190,23 +193,15 @@ export async function listProjects(userId) {
 
   return Project.find(
     { owner: userId },
-    { name: 1, description: 1, version: 1, createdAt: 1, updatedAt: 1 },
+    { name: 1, slug: 1, description: 1, version: 1, createdAt: 1, updatedAt: 1 },
   ).sort({ updatedAt: -1 });
 }
 
-// Get project details
-export async function getProjectById(id, userId) {
-  requireUser(userId);
-
-  const project = await Project.findOne({ _id: id, owner: userId });
-
-  if (!project) {
-    throw new HttpError(404, "Project not found");
-  }
-
+function serializeProject(project) {
   return {
     _id: project._id,
     name: project.name,
+    slug: project.slug,
     description: project.description,
     files: filesToObject(project.files),
     messages: project.messages,
@@ -218,6 +213,33 @@ export async function getProjectById(id, userId) {
     error: project.error,
     createdAt: project.createdAt,
   };
+};
+
+// Get project details
+export async function getProjectById(id, userId) {
+  requireUser(userId);
+
+  const project = await Project.findOne({ _id: id, owner: userId });
+
+  if (!project) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  return serializeProject(project);
+}
+
+//
+//
+export async function getProjectBySlug(slug, userId) {
+  requireUser(userId);
+
+  const project = await Project.findOne({ slug, owner: userId });
+
+  if (!project) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  return serializeProject(project);
 }
 
 // Delete a project
@@ -338,6 +360,10 @@ export async function chatOnProject(id, userId, prompt) {
     throw new HttpError(404, "Project not found");
   }
 
+  return reviseAndSave(project, prompt);
+}
+
+async function reviseAndSave(project, prompt) {  
   // Set status to revising and save the user's prompt immediately
   project.status = "revising";
   project.messages.push({
@@ -414,6 +440,7 @@ export async function chatOnProject(id, userId, prompt) {
     return {
       _id: project._id,
       name: project.name,
+      slug: project.slug,
       description: project.description,
       files: filesObj,
       messages: project.messages,
@@ -433,4 +460,24 @@ export async function chatOnProject(id, userId, prompt) {
 
     throw new HttpError(500, error.message || "Failed to process revision request");
   }
+}
+
+
+
+// Same as chatOnProject, but looks the project up by slug — this is what
+// the builder page (slug-routed) actually calls.
+export async function chatOnProjectBySlug(slug, userId, prompt) {
+  requireUser(userId);
+
+  if (!prompt || typeof prompt !== "string") {
+    throw new HttpError(400, "Prompt is required");
+  }
+
+  const project = await Project.findOne({ slug, owner: userId });
+
+  if (!project) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  return reviseAndSave(project, prompt);
 }

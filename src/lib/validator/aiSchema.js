@@ -6,7 +6,7 @@ export const GenerationResultSchema = z.object({
 });
 
 export const FileOpSchema = z.object({
-  files: z.enum(["create", "update", "delete"]),
+  op: z.enum(["create", "update", "delete"]),
   path: z.string(),
   content: z.string().nullable().optional(),
   search: z.string().nullable().optional(),
