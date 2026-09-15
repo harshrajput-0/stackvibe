@@ -20,6 +20,7 @@ export function ChatPanel({
   inputValue,
   onInputChange,
   onSend,
+  files,
 }) {
   const logRef = useRef(null);
 
@@ -110,7 +111,7 @@ export function ChatPanel({
       <div
         className={`min-h-0 flex-1 ${sideTab === "files" ? "flex flex-col" : "hidden"}`}
       >
-        <FileTree />
+        <FileTree files={files} />
       </div>
     </aside>
   );

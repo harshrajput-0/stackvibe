@@ -1,5 +1,4 @@
 import { Check } from "lucide-react";
-import { PLANNED_FILES } from "@/lib/constants";
 
 export function GeneratingView({
   projectName,
@@ -7,6 +6,7 @@ export function GeneratingView({
   doneCount,
   total,
   fileStatuses,
+  plannedFiles = [],
 }) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center p-6.5">
@@ -33,12 +33,12 @@ export function GeneratingView({
           PLANNED FILES ({doneCount}/{total})
         </div>
         <div className="mt-2.5 max-h-65 overflow-y-auto rounded-md border border-gray-200 bg-white p-1.5 text-left">
-          {PLANNED_FILES.map((file, index) => {
+          {plannedFiles.map((file, index) => {
             const status = fileStatuses[index];
             return (
               <div
                 className="flex items-start gap-2.5 rounded-md border-t border-t-gray-100 px-2.5 py-2.25 first:border-t-0"
-                key={file.file}
+                key={file.path}
               >
                 <span className="mt-px flex h-3.75 w-3.75 flex-none items-center justify-center">
                   {status === "done" ? (
@@ -57,7 +57,7 @@ export function GeneratingView({
                         : "text-gray-300"
                     }`}
                   >
-                    {file.file}
+                    {file.path}
                   </div>
                   <div className="mt-0.5 line-clamp-1 text-[11.5px] leading-[1.4] text-gray-400">
                     {file.description}
