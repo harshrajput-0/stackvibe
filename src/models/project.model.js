@@ -15,15 +15,20 @@ const projectSchema = new mongoose.Schema(
     },
 
     messages: {
-      type: [mongoose.Schema.Types.ObjectId],
-      ref: "Message",
+      type: [
+        {
+          role: { type: String, enum: ["user", "assistant"], required: true },
+          content: { type: String, required: true },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
       default: [],
     },
 
     owner: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: String,
       required: true,
+      index: true,
     },
 
     files: {
@@ -48,8 +53,12 @@ const projectSchema = new mongoose.Schema(
     },
 
     filesPlanned: {
-      type: [mongoose.Schema.Types.ObjectId],
-      ref: "PlannedFile",
+      type: [
+        {
+          path: { type: String, required: true },
+          description: { type: String, required: true },
+        },
+      ],
       default: [],
     },
 
@@ -66,6 +75,12 @@ const projectSchema = new mongoose.Schema(
     error: {
       type: String,
       default: null,
+    },
+
+    slug: {
+      type: String,
+      required: true,
+      trim: true,
     },
   },
   {
