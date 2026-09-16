@@ -5,6 +5,7 @@ import { ArrowUp } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { FileTree } from "./FileTree";
 import { Button } from "@/components/ui/Button";
+import { useResizablePanel } from "@/hooks/useResizablePanel";
 
 // STYLES
 const tabBtn =
@@ -23,6 +24,13 @@ export function ChatPanel({
   files,
 }) {
   const logRef = useRef(null);
+
+  // Draggable width, clamped between 260px and 30% of the screen width.
+  const { width, startResizing } = useResizablePanel({
+    initialWidth: 320,
+    minWidth: 260,
+    maxWidthRatio: 0.3,
+  });
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -57,7 +65,22 @@ export function ChatPanel({
     }
   }
   return (
-    <aside className="flex w-80 flex-none flex-col border-r border-gray-200 bg-white">
+    <aside
+      className="relative flex flex-none flex-col border-r border-gray-200 bg-white"
+      style={{ width }}
+    >
+      {/* Drag handle for resizing the panel, capped at 30% of screen width. */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize chat panel"
+        onMouseDown={startResizing}
+        onTouchStart={startResizing}
+        className="absolute top-0 -right-1 z-10 h-full w-2 cursor-col-resize touch-none select-none"
+      >
+        <div className="mx-auto h-full w-px bg-transparent transition-colors duration-150 hover:bg-gray-300 active:bg-gray-400" />
+      </div>
+
       <div className="m-3 flex flex-none gap-0.5 rounded-sm bg-gray-100 p-0.75">
         <button
           className={`${tabBtn} ${sideTab === "chat" ? activeTab : "text-gray-500"}`}

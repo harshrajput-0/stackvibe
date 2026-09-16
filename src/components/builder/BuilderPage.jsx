@@ -110,6 +110,7 @@ export function BuilderPage({ projectSlug }) {
         onShowPreview={view.showPreview}
         onOpenPublish={publishModal.open}
         onPublish={publishModal.open}
+        files={files}
       />
 
       <div className="flex min-h-0 flex-1">
