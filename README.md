@@ -85,16 +85,16 @@ Ensure you have the following installed on your local machine:
 
    *Example Configuration:*
    ```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+   CLERK_SECRET_KEY=
 
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+   NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+   NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 
-MONGODB_URI=
+   MONGODB_URI=
 
-OPENROUTER_KEY=api-key
-OPENROUTER_MODEL=model-name
+   OPENROUTER_KEY=api-key
+   OPENROUTER_MODEL=model-name
    ```
 
 4. **Run the Development Server:**
