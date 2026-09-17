@@ -1,37 +1,34 @@
 "use client";
 
 import { useMemo } from "react";
-import { SandpackProvider, SandpackPreview } from "@codesandbox/sandpack-react";
-
-// Sandback runs AI-generated React files in a live preview
-// Tailwind CSS and Font Awesome loaded via CDN
-const ENTRY_CODE = `import React from "react";
-import { createRoot } from "react-dom/client";
-import "./styles.css";
-import App from "./App";
-
-const root = createRoot(document.getElementById("root"));
-root.render(<App />);
-`;
-
-// Minimum HTML Required by React application
-const INDEX_HTML = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
-</html>
-`;
+import {
+  SandpackProvider,
+  SandpackPreview,
+  useSandpackPreviewProgress,
+} from "@codesandbox/sandpack-react";
+import { Loader2 } from "lucide-react";
+import { PREVIEW_ENTRY_CODE, PREVIEW_INDEX_HTML } from "@/lib/generation/previewTemplate";
 
 // External Resouces used for generating website
 const EXTERNAL_RESOURCES = [
   "https://cdn.tailwindcss.com",
   "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css",
 ];
+
+// Overlay shown on top of the preview while Sandpack's bundler is
+// downloading dependencies / building. Must render inside SandpackProvider.
+function SandboxLoadingOverlay() {
+  const progressMessage = useSandpackPreviewProgress();
+
+  if (!progressMessage) return null;
+
+  return (
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 bg-white/90 backdrop-blur-sm">
+      <Loader2 size={20} strokeWidth={2} className="animate-spin text-gray-400" />
+      <span className="text-[11.5px] text-gray-400">{progressMessage}</span>
+    </div>
+  );
+}
 
 export function PreviewView({ chromeUrl, siteName, files = {} }) {
   // Check App.js file
@@ -42,7 +39,10 @@ export function PreviewView({ chromeUrl, siteName, files = {} }) {
     if (!hasApp) return null;                          // No App.js means no preview
 
     // Sandpack's React template uses /src/index.js as its entry point.
-    const entries = { "/public/index.html": INDEX_HTML, "/src/index.js": ENTRY_CODE };
+    const entries = {
+      "/public/index.html": PREVIEW_INDEX_HTML,
+      "/src/index.js": PREVIEW_ENTRY_CODE,
+    };
 
     // Move generated files into /src folder
     for (const [path, content] of Object.entries(files)) {
@@ -81,13 +81,16 @@ export function PreviewView({ chromeUrl, siteName, files = {} }) {
             style={{ height: "100%", flex: 1, minHeight: 0 }}
           >
 
-            {/* Renders the generated website */}
-            <SandpackPreview
-              showNavigator={false}
-              showOpenInCodeSandbox={false}
-              showRefreshButton
-              style={{ height: "100%" }}
-            />
+            {/* Renders the generated website, with a loading overlay while it bundles. */}
+            <div className="relative h-full">
+              <SandpackPreview
+                showNavigator={false}
+                showOpenInCodeSandbox={false}
+                showRefreshButton
+                style={{ height: "100%" }}
+              />
+              <SandboxLoadingOverlay />
+            </div>
           </SandpackProvider>
         ) : (
           // Display a message when no files have been generated.

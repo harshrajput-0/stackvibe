@@ -1,6 +1,8 @@
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { downloadProjectZip } from "@/lib/utils/downloadProjectZip";
 
 function TabButton({ active, onClick, children }) {
   return (
@@ -24,7 +26,22 @@ export function BuilderTopBar({
   onShowPreview,
   onOpenPublish,
   onPublish,
+  files = {},
 }) {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const hasFiles = Object.keys(files).length > 0;
+
+  async function handleDownload() {
+    if (!hasFiles || isDownloading) return;
+
+    setIsDownloading(true);
+    try {
+      await downloadProjectZip(files, projectName);
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
   return (
     <div className="flex h-14 flex-none items-center justify-between border-b border-gray-200 bg-white px-4.5">
       <div className="flex items-center gap-2.5 text-sm font-semibold">
@@ -51,6 +68,20 @@ export function BuilderTopBar({
       </div>
 
       <div className="flex items-center gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleDownload}
+          disabled={!hasFiles || isDownloading}
+          aria-label="Download project as zip"
+        >
+          {isDownloading ? (
+            <Loader2 size={14} strokeWidth={2} className="animate-spin" />
+          ) : (
+            <Download size={14} strokeWidth={2} />
+          )}
+          Download
+        </Button>
         <Button variant="secondary" size="sm" onClick={onPublish}>
           Share
         </Button>
