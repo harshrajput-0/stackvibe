@@ -1,4 +1,4 @@
-// import { UserButton } from "@clerk/nextjs";
+import { UserButton } from "@clerk/nextjs";
 import { Logo } from "@/components/ui/Logo";
 
 export const TopNav = () => {
@@ -8,13 +8,13 @@ export const TopNav = () => {
         <Logo width={19} height={18} color="black" className="block" />
         <span className="font-bold">StackVibe</span>
       </div>
-      {/* <UserButton
+      <UserButton
         appearance={{
           elements: {
             userButtonAvatarBox: { width: 34, height: 34 },
           },
         }}
-      /> */}
+      />
     </div>
   );
 };

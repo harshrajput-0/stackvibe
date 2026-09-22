@@ -9,7 +9,7 @@ function TabButton({ active, onClick, children }) {
     <button
       className={`h-7.5 rounded-[5px] px-3.5 text-[13px] font-medium transition-[background,color] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         active
-          ? "bg-white text-black shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+          ? "bg-white! text-black shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
           : "text-gray-500"
       }`}
       onClick={onClick}
