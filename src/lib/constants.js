@@ -110,3 +110,53 @@ export const SIDEBAR_FILE_TREE = [
 export const GENERATION_STEP_DELAY_MS = 420;
 export const GENERATION_COMPLETE_DELAY_MS = 450;
 export const CHAT_REPLY_DELAY_MS = 700;
+
+
+
+// Host shown in project URLs
+export const PUBLIC_HOST = "stackvibe.vercel.app";
+
+// Examples animation data
+export const DEMO_EXAMPLES = [
+  {
+    label: "Ceramics studio",
+    prompt: "A portfolio for a ceramics studio",
+    url: "terra.stackvibe.app",
+    brand: "Terra Studio",
+    links: ["Shop", "About", "Visit"],
+    heading: ["Hand-thrown", "in Lisbon."],
+    text: "Plates, vases and bowls, made in small batches.",
+    cta: "Shop the studio",
+    tiles: [{ art: "plate" }, { art: "vase" }, { art: "bowl" }],
+  },
+  {
+    label: "Dog walker",
+    prompt: "A booking page for a dog walker",
+    url: "pawline.stackvibe.app",
+    brand: "Pawline",
+    links: ["Walks", "Prices", "Contact"],
+    heading: ["Walks your dog", "will wait for."],
+    text: "Book a 30 or 60 minute walk in two taps.",
+    cta: "Book a walk",
+    tiles: [
+      { title: "30 min", meta: "$15" },
+      { title: "60 min", meta: "$25" },
+      { title: "Group walk", meta: "$12" },
+    ],
+  },
+  {
+    label: "Jazz night",
+    prompt: "A menu and RSVP page for a jazz night",
+    url: "bluehour.stackvibe.app",
+    brand: "Blue Hour",
+    links: ["Lineup", "Menu", "Find us"],
+    heading: ["Live jazz,", "every Thursday."],
+    text: "Doors at 7, music at 8. Save a table for your group.",
+    cta: "RSVP",
+    tiles: [
+      { title: "Oct 1", meta: "Trio" },
+      { title: "Oct 8", meta: "Quartet" },
+      { title: "Oct 15", meta: "Open jam" },
+    ],
+  },
+];

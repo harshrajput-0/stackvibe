@@ -2,7 +2,7 @@ import { Logo } from "@/components/ui/Logo";
 
 export function AuthLeftPanel() {
   return (
-    <div className="flex flex-col justify-between bg-gray-900 text-white p-14 max-[860px]:min-h-70 max-[860px]:px-7 max-[860px]:py-9 w-full">
+    <div className="flex flex-col justify-between bg-gray-950 text-white p-14 max-[860px]:min-h-70 max-[860px]:px-7 max-[860px]:py-9 w-full">
       <div className="flex items-center gap-2.5">
         <Logo width={19} height={21.4} color="white" />
         <span className="text-[16px] font-bold tracking-[-0.01em]">
