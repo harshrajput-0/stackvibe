@@ -1,29 +1,39 @@
-import { Button } from "../ui/Button";
+import { Button, Container } from "@/components/ui";
+import { PromptDemo } from "@/components/shared/PromptDemo";
 
 export const Hero = () => {
   return (
-    <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center px-6 py-4">
-      <div
-        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/20 text-[12px] mb-5.5"
-        // style={{border: 1px solid rgba(255, 255, 255, 0.15);}}
-      >
-        ✦ AI-powered site builder
+    <Container
+      as="main"
+      className="grid flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] items-center gap-16 pt-4 pb-8 max-[900px]:grid-cols-1 max-[900px]:gap-11 max-[900px]:pt-6 max-[900px]:pb-12"
+    >
+      <div> 
+        <h1 className="max-w-135 text-[clamp(38px,5vw,60px)] leading-[1.04] font-extrabold tracking-[-0.035em]">
+          Build your ideas on the web.
+        </h1>
+        <p className="mt-5 max-w-115 text-[17px] leading-[1.55] text-(--gray-400)">
+          Describe what you want. StackVibe writes the code, shows a live
+          preview, and publishes the site when you&rsquo;re ready. No code
+          needed.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Button variant="secondary" href="/sign-up">
+            Start building — it&rsquo;s free
+          </Button>
+          <Button variant="outline" href="/sign-in">
+            Sign in
+          </Button>
+        </div>
+        <p className="mt-3.5 text-[13px] text-(--gray-500)">
+          Free to start. No card needed.
+        </p>
       </div>
-      <h1 className="text-[clamp(30px,5vw,58px)] font-extrabold tracking-[-0.03em] leading-[1.08] max-w-205">
-        Build your ideas on the web.
-      </h1>
-      <p className="mt-4 max-w-130 text-base leading-[1.6] text-(--gray-400)">
-        Describe what you want, and StackVibe writes, previews, and publishes
-        the site for you — no code required.
-      </p>
-      <div className="mt-7.5 flex gap-3 flex-wrap justify-center">
-        <Button variant="secondary" href={"/sign-up"}>
-          Start building — it&rsquo;s free
-        </Button>
-        <Button variant="outline" href={"/sign-up"}>
-          Sign in
-        </Button>
-      </div>
-    </div>
+
+      <PromptDemo
+        size="lg"
+        showPicker
+        className="justify-self-end max-[900px]:max-w-none max-[900px]:justify-self-stretch"
+      />
+    </Container>
   );
 };

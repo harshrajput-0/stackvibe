@@ -65,6 +65,12 @@ export function SignUpForm() {
         heading="Create your account"
         description="Start building with StackVibe for free"
       />
+      <SocialButtons
+        onGoogle={() => submitOAuth("oauth_google")}
+        onGithub={() => submitOAuth("oauth_github")}
+      />
+
+     <Divider />
 
       <form onSubmit={submit}>
         <Input
@@ -115,11 +121,7 @@ export function SignUpForm() {
         </Button>
       </form>
 
-      <Divider />
-      <SocialButtons
-        onGoogle={() => submitOAuth("oauth_google")}
-        onGithub={() => submitOAuth("oauth_github")}
-      />
+ 
 
       <div className="mt-6.5 text-center text-[13px] text-gray-500">
         Already have an account?{" "}

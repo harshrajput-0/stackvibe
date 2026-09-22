@@ -22,8 +22,14 @@ export function SignInForm() {
     <div className="w-full max-w-90">
       <FormHeader
         heading="Sign in"
-        description="Enter your credentials to continue"
+        description="Welcome back. Choose how you'd like to continue."
       />
+      <SocialButtons
+        onGoogle={() => submitOAuth("oauth_google")}
+        onGithub={() => submitOAuth("oauth_github")}
+      />
+
+      <Divider />
 
       <form onSubmit={submit}>
         <Input
@@ -63,19 +69,15 @@ export function SignInForm() {
         </Button>
       </form>
 
-      <Divider />
-      <SocialButtons
-        onGoogle={() => submitOAuth("oauth_google")}
-        onGithub={() => submitOAuth("oauth_github")}
-      />
+
 
       <div className="mt-6.5 text-center text-[13px] text-gray-500">
-        Don&rsquo;t have an account?{" "}
+        New to StackVibe?{" "}
         <Link
           href="/sign-up"
           className="font-semibold text-gray-700! hover:text-gray-900! hover:underline"
         >
-          Sign up
+          Create an account
         </Link>
       </div>
     </div>
