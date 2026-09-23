@@ -607,7 +607,7 @@ export async function updateProjectDetails(id, userId, details) {
     throw new HttpError(400, "Nothing to update");
   }
 
-  const project = await Project.findOneAndUpdate(
+  const project = await Project.findOneAndUpdate( 
     { _id: id, owner: userId },
     { $set: updates },
     { returnDocument: "after" },
