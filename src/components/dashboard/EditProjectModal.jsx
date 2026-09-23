@@ -153,7 +153,7 @@ function EditProjectForm({ project, isSaving, onSave, onClose }) {
         {serverError.field === "form" && serverError.message}
       </FormError>
 
-      <div className="mt-6 flex gap-2.5">
+      <div className="mt-6 grid grid-cols-2 gap-2.5">
         <Button variant="secondary" block onClick={onClose} disabled={isSaving}>
           Cancel
         </Button>

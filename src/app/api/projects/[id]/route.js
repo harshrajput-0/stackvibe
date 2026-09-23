@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db.js";
 import {
   getProjectById,
   updateProjectFiles,
+  updateProjectDetails,
   deleteProject,
 } from "@/controllers/project.controller";
 import { HttpError } from "@/lib/httpErrors";
@@ -36,6 +37,23 @@ export async function PUT(req, { params }) {
       return Response.json({ error: err.message }, { status: err.status });
     }
     console.error("[PUT /api/projects/:id]", err);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req, { params }) {
+  try {
+    await connectDB();
+    const { id } = await params;
+    const { userId } = await auth();
+    const details = await req.json();
+    const project = await updateProjectDetails(id, userId, details);
+    return Response.json(project);
+  } catch (err) {
+    if (err instanceof HttpError) {
+      return Response.json({ error: err.message }, { status: err.status });
+    }
+    console.error("[PATCH /api/projects/:id]", err);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
