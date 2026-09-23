@@ -18,7 +18,8 @@ import { useBuilderView } from "@/hooks/useBuilderView";
 import { usePublishModal } from "@/hooks/usePublishModal";
 
 // API for loading function from backend
-import { getProjectBySlug } from "@/api-client/projectService";
+import { getProjectBySlug, publishProject } from "@/api-client/projectService";
+import { PUBLIC_HOST } from "@/lib/constants";
 
 export function BuilderPage({ projectSlug }) {
   const searchParams = useSearchParams();
@@ -33,6 +34,8 @@ export function BuilderPage({ projectSlug }) {
   const [project, setProject] = useState(null);
   const [files, setFiles] = useState({});
   const [loadError, setLoadError] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState("");
   const hasStartedGeneration = useRef(false);
 
   // Update builder with latest project data
@@ -93,11 +96,27 @@ export function BuilderPage({ projectSlug }) {
   }, [isGenerating, projectSlug]);
 
   const projectName = project?.name || fallbackName;
-  const chromeUrl = `stackvibe.app/${projectSlug}`;                                                            // Project URL on sandbox preview
+  const chromeUrl = `${PUBLIC_HOST}/${projectSlug}`; // Project URL shown in the sandbox chrome bar and publish modal
 
   // Update files after with one returned form chat
   function handleFilesUpdated(updatedFiles) {
     if (updatedFiles) setFiles(updatedFiles);
+  }
+
+  // Mark the project published (or re-publish after edits).
+  async function handlePublish() {
+    if (!project?._id || isPublishing) return;
+
+    try {
+      setIsPublishing(true);
+      setPublishError("");
+      const updated = await publishProject(project._id);
+      setProject((current) => ({ ...current, ...updated }));
+    } catch (err) {
+      setPublishError(err.message || "Failed to publish the project");
+    } finally {
+      setIsPublishing(false);
+    }
   }
 
   return (
@@ -165,6 +184,10 @@ export function BuilderPage({ projectSlug }) {
         isOpen={publishModal.isOpen}
         onClose={publishModal.close}
         publishUrl={chromeUrl}
+        isPublished={Boolean(project?.published)}
+        isPublishing={isPublishing}
+        publishError={publishError}
+        onPublish={handlePublish}
       />
     </div>
   );

@@ -52,13 +52,7 @@ function ConfirmBody({
         <Button variant="secondary" block onClick={onClose} disabled={loading}>
           {cancelLabel}
         </Button>
-        <Button
-          type="submit"
-          variant="danger"
-          block
-          disabled={!ready}
-          loading={loading}
-        >
+        <Button type="submit" variant="danger" block disabled={!ready} loading={loading}>
           {confirmLabel}
         </Button>
       </div>

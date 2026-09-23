@@ -113,8 +113,9 @@ export const CHAT_REPLY_DELAY_MS = 700;
 
 
 
-// Host shown in project URLs
-export const PUBLIC_HOST = "stackvibe.vercel.app";
+// Host shown in project URLs. Set NEXT_PUBLIC_URL in .env — this only
+// falls back to the hardcoded value if that's missing (e.g. local setup).
+export const PUBLIC_HOST = process.env.NEXT_PUBLIC_URL || "stackvibe.vercel.app";
 
 // Examples animation data
 export const DEMO_EXAMPLES = [

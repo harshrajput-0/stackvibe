@@ -8,7 +8,7 @@ import {
 } from "@/lib/validators/aiSchema.js";
 import { buildFileCodeSystem, FILE_PLAN_SYSTEM, REVISE_SYSTEM } from "./prompt.js";
 import { normalizeContent } from "./contentNormalizer.js";
-import { validateAndFixCode, validateRevisionContent } from "./codeValidator.js";
+import { validateAndFixCode, validateRevisionContent, findUnresolvedImports } from "./codeValidator.js";
 
 // ----------------------- OpenRouter Model Client Setup --------
 const MODEL = process.env.OPENROUTER_MODEL || "openrouter/free";
@@ -232,6 +232,50 @@ export async function generateProject(prompt, callbacks) {
           "  return (\n" +
           "    <div className='p-8 text-center text-zinc-400'>\n" +
           "      <p>⚠️ Component failed to generate. Please try again.</p>\n" +
+          "    </div>\n" +
+          "  );\n" +
+          "}\n";
+      }
+    }
+  }
+
+  // SAFETY NET: some imports still won't resolve even after fixImportPaths —
+  // that happens when the model references a component it never actually
+  // planned/generated (not just planned-but-misplaced). Left alone, this is
+  // what crashes the Sandpack preview with "Could not find module in path".
+  // Stub those files in so the site loads with a visible gap instead of a
+  // hard crash.
+  const unresolvedImports = findUnresolvedImports(files);
+  if (unresolvedImports.length > 0) {
+    console.warn(
+      `[Assistant]: Stubbing ${unresolvedImports.length} unresolved import(s): ${unresolvedImports
+        .map((u) => `'${u.importTarget}' from ${u.fromFile}`)
+        .join(", ")}`,
+    );
+
+    for (const { resolvedPath, isCss } of unresolvedImports) {
+      const alreadyStubbed =
+        files[resolvedPath] ||
+        files[`${resolvedPath}.jsx`] ||
+        files[`${resolvedPath}.css`];
+      if (alreadyStubbed) continue; // two files importing the same missing module
+
+      if (isCss) {
+        files[`${resolvedPath}.css`] =
+          "/* Referenced by an import but never generated. */\n";
+      } else {
+        const rawName = resolvedPath.split("/").pop() || "Missing";
+        const name = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(rawName)
+          ? rawName
+          : "MissingComponent";
+
+        files[`${resolvedPath}.jsx`] =
+          "import React from 'react';\n\n" +
+          `// ⚠️ Referenced by an import but never generated.\n\n` +
+          `export default function ${name}() {\n` +
+          "  return (\n" +
+          "    <div className='p-8 text-center text-zinc-400'>\n" +
+          `      <p>⚠️ "${name}" was referenced but never generated. Try regenerating.</p>\n` +
           "    </div>\n" +
           "  );\n" +
           "}\n";
