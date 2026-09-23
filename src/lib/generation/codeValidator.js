@@ -320,3 +320,44 @@ function fixImportPaths(code, filePath, allPlannedFiles) {
 
   return { code: newCode, warnings };
 }
+
+// Last-resort safety net, run once ALL files are done generating.
+//
+// fixImportPaths() above only repairs an import that points at the *wrong*
+// location for a file that genuinely exists somewhere in the plan. It can't
+// help when the model writes e.g. `import Features from './components/Features'`
+// in App.js but no "Features" file was ever planned or generated — that's
+// exactly what crashes the Sandpack preview with
+// "Could not find module in path: './components/Features'".
+//
+// This scans every generated file's relative imports and reports any that
+// don't resolve to an actual generated file, so the caller can stub them out
+// instead of shipping a project that fails to even load.
+export function findUnresolvedImports(files) {
+  const cleanPaths = new Set(Object.keys(files).map(cleanExtension));
+  const unresolved = [];
+  const importRegex = /(from\s+['"]|import\s+['"])([^'"]+)(['"])/g;
+
+  for (const [filePath, code] of Object.entries(files)) {
+    if (typeof code !== "string") continue;
+
+    const currentDir = getDir(filePath);
+    let match;
+    while ((match = importRegex.exec(code)) !== null) {
+      const importTarget = match[2];
+      if (!importTarget.startsWith(".")) continue; // skip packages like 'react'
+
+      const resolvedPath = cleanExtension(resolvePath(currentDir, importTarget));
+      if (!cleanPaths.has(resolvedPath)) {
+        unresolved.push({
+          fromFile: filePath,
+          importTarget,
+          resolvedPath,
+          isCss: /\.css$/.test(importTarget),
+        });
+      }
+    }
+  }
+
+  return unresolved;
+}
