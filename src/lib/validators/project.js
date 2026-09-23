@@ -5,8 +5,8 @@ import { slugify } from "@/lib/utils/slugify";
 export const MAX_NAME_LENGTH = 80;
 export const MAX_DESCRIPTION_LENGTH = 2000;
 export const MAX_SLUG_LENGTH = 60;
-export const MAX_THUMBNAIL_LENGTH = 600_000;
-export const THUMBNAIL_PATTERN = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
+const MAX_THUMBNAIL_LENGTH = 600_000;
+const THUMBNAIL_PATTERN = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
 
 // ===| PROJECT DETAILS SCHEMA |------------------
 export const projectDetailsSchema = z
