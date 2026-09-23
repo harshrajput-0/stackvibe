@@ -5,7 +5,7 @@ import {
   FileCodeSchema,
   FilePlanSchema,
   RevisionResultSchema,
-} from "@/lib/validator/aiSchema.js";
+} from "@/lib/validators/aiSchema.js";
 import { buildFileCodeSystem, FILE_PLAN_SYSTEM, REVISE_SYSTEM } from "./prompt.js";
 import { normalizeContent } from "./contentNormalizer.js";
 import { validateAndFixCode, validateRevisionContent } from "./codeValidator.js";

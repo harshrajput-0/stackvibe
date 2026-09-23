@@ -37,3 +37,41 @@ export async function getProjectBySlug(slug) {
 
   return response.json();
 }
+
+// Read the server's `{ error }` message off a failed response. The thrown
+// Error carries `status` so callers can react to specific cases (e.g. 409).
+async function toApiError(response, fallback) {
+  const body = await response.json().catch(() => ({}));
+  const error = new Error(body.error || fallback);
+  error.status = response.status;
+  return error;
+}
+
+// UPDATE PROJECT DETAILS — send only the fields that changed:
+// { name, description, slug, thumbnail }
+export async function updateProjectDetails(id, details) {
+  const response = await fetch(`/api/projects/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(details),
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, "Failed to update the project");
+  }
+
+  return response.json();
+}
+
+// DELETE PROJECT
+export async function deleteProject(id) {
+  const response = await fetch(`/api/projects/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, "Failed to delete the project");
+  }
+}

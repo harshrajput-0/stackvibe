@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSignUp } from "@clerk/nextjs";
+import { useFieldErrors } from "./useFieldErrors";
+import { signUpSchema } from "@/lib/validators/auth";
 
 const REDIRECT_URL = "/dashboard";
 
@@ -13,11 +15,37 @@ export function useSignUpForm() {
   const { signUp, fetchStatus } = useSignUp();
   const router = useRouter();
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [name, setNameValue] = useState("");
+  const [email, setEmailValue] = useState("");
+  const [password, setPasswordValue] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const { errors: fieldErrors, validate, clear } = useFieldErrors();
+
+  // Editing a field clears its validation message.
+  const setName = useCallback(
+    (value) => {
+      setNameValue(value);
+      clear("name");
+    },
+    [clear],
+  );
+
+  const setEmail = useCallback(
+    (value) => {
+      setEmailValue(value);
+      clear("email");
+    },
+    [clear],
+  );
+
+  const setPassword = useCallback(
+    (value) => {
+      setPasswordValue(value);
+      clear("password");
+    },
+    [clear],
+  );
   const [needsVerification, setNeedsVerification] = useState(false);
 
   const isSubmitting = fetchStatus === "fetching";
@@ -39,6 +67,8 @@ export function useSignUpForm() {
     async (event) => {
       event.preventDefault();
       setError("");
+
+      if (!validate({ name, email, password }, signUpSchema)) return;
 
       const [firstName, ...rest] = name.trim().split(/\s+/);
 
@@ -74,7 +104,7 @@ export function useSignUpForm() {
       }
       setNeedsVerification(true);
     },
-    [signUp, name, email, password, navigate],
+    [signUp, name, email, password, navigate, validate],
   );
 
   const submitVerification = useCallback(
@@ -129,6 +159,7 @@ export function useSignUpForm() {
     code,
     setCode,
     error,
+    fieldErrors,
     isSubmitting,
     needsVerification,
     submit,

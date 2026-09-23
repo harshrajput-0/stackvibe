@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSignIn } from "@clerk/nextjs";
+import { useFieldErrors } from "./useFieldErrors";
+import { signInSchema } from "@/lib/validators/auth";
 
 const REDIRECT_URL = "/dashboard";
 
@@ -13,9 +15,26 @@ export function useSignInForm() {
   const { signIn, fetchStatus } = useSignIn();
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmailValue] = useState("");
+  const [password, setPasswordValue] = useState("");
   const [error, setError] = useState("");
+  const { errors: fieldErrors, validate, clear } = useFieldErrors();
+
+  const setEmail = useCallback(
+    (value) => {
+      setEmailValue(value);
+      clear("email");
+    },
+    [clear],
+  );
+
+  const setPassword = useCallback(
+    (value) => {
+      setPasswordValue(value);
+      clear("password");
+    },
+    [clear],
+  );
 
   const isSubmitting = fetchStatus === "fetching";
 
@@ -36,6 +55,8 @@ export function useSignInForm() {
     async (event) => {
       event.preventDefault();
       setError("");
+
+      if (!validate({ email, password }, signInSchema)) return;
 
       const { error: submitError } = await signIn.password({
         emailAddress: email,
@@ -63,7 +84,7 @@ export function useSignInForm() {
         setError("Couldn't sign you in. Check your details and try again.");
       }
     },
-    [signIn, email, password, navigate],
+    [signIn, email, password, navigate, validate],
   );
 
   const submitOAuth = useCallback(
@@ -91,6 +112,7 @@ export function useSignInForm() {
     password,
     setPassword,
     error,
+    fieldErrors,
     isSubmitting,
     submit,
     submitOAuth,

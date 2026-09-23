@@ -7,8 +7,11 @@ import { TopNav } from "./TopNav";
 import { PromptBox } from "./PromptBox";
 import { ChipRow } from "./ChipRow";
 import { ProjectGrid } from "./ProjectGrid";
+import { EditProjectModal } from "./EditProjectModal";
+import { ConfirmModal } from "@/components/ui";
 
 import { useDashboardPrompt } from "@/hooks/useDashboardPrompt";
+import { useProjectActions } from "@/hooks/useProjectActions";
 
 import {
   listProjects,
@@ -27,6 +30,9 @@ export const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
+
+  // Edit details / delete, opened from each card's "⋮" menu.
+  const projectActions = useProjectActions(setProjects);
 
   // Load the current user's projects when the dashboard opens.
   useEffect(() => {
@@ -125,9 +131,42 @@ async function handleGenerate() {
           <ProjectGrid
             projects={projects}
             onOpenProject={handleOpenProject}
+            onEditProject={projectActions.startEdit}
+            onDeleteProject={projectActions.startDelete}
           />
         )}
       </main>
+
+      <EditProjectModal
+        project={projectActions.editing}
+        isSaving={projectActions.isSaving}
+        onSave={projectActions.saveDetails}
+        onClose={projectActions.closeEdit}
+      />
+
+      <ConfirmModal
+        open={Boolean(projectActions.deleting)}
+        onClose={projectActions.closeDelete}
+        onConfirm={projectActions.confirmDelete}
+        title="Delete project"
+        description={
+          <>
+            This will permanently delete{" "}
+            <strong>{projectActions.deleting?.name ?? "this project"}</strong>.
+          </>
+        }
+        warning={
+          <>
+            <strong>This can&rsquo;t be undone.</strong> The project, its
+            generated code, and its published site (if any) will be permanently
+            removed.
+          </>
+        }
+        confirmWord="delete"
+        confirmLabel="Delete project"
+        loading={projectActions.isDeleting}
+        error={projectActions.deleteError}
+      />
     </div>
   );
 };
