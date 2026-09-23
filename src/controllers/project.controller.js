@@ -1,4 +1,7 @@
+import mongoose from "mongoose";
 import Project from "@/models/project.model.js";
+import { slugify } from "@/lib/utils/slugify.js";
+import { projectDetailsSchema } from "@/lib/validators/project.js";
 import { hashContent } from "@/lib/utils/hashContent.js";
 import { HttpError } from "@/lib/httpErrors.js";
 import { generateProject, reviseProject } from "@/lib/generation/ai.js";
@@ -21,14 +24,21 @@ function createProjectName(prompt) {
   return name || "Untitled Project";
 }
 
-function createSlug(name) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
+// Is this slug already used by another of the owner's projects?
+async function isSlugTaken(owner, slug, excludeId) {
+  const filter = { owner, slug };
+  if (excludeId) filter._id = { $ne: excludeId };
+  return Boolean(await Project.exists(filter));
+}
+
+// Slug for a new project: "coffee-shop", then "coffee-shop-2", "-3", …
+async function createUniqueSlug(owner, name) {
+  const base = slugify(name);
+  let slug = base;
+  for (let attempt = 2; await isSlugTaken(owner, slug); attempt++) {
+    slug = `${base}-${attempt}`;
+  }
+  return slug;
 }
 
 function filesToObject(files) {
@@ -49,7 +59,7 @@ export async function createProject(userId, prompt) {
 
   // Generating slug from prompt
   const name = createProjectName(prompt);
-  const slug = createSlug(name);
+  const slug = await createUniqueSlug(userId, name);
 
   // Create the project in DB immediately with "pending" status
 const project = await Project.create({
@@ -193,7 +203,15 @@ export async function listProjects(userId) {
 
   return Project.find(
     { owner: userId },
-    { name: 1, slug: 1, description: 1, version: 1, createdAt: 1, updatedAt: 1 },
+    {
+      name: 1,
+      slug: 1,
+      description: 1,
+      thumbnail: 1,
+      version: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    },
   ).sort({ updatedAt: -1 });
 }
 
@@ -245,6 +263,10 @@ export async function getProjectBySlug(slug, userId) {
 // Delete a project
 export async function deleteProject(id, userId) {
   requireUser(userId);
+
+  if (!mongoose.isValidObjectId(id)) {
+    throw new HttpError(404, "Project not found");
+  }
 
   const result = await Project.findOneAndDelete({ _id: id, owner: userId });
 
@@ -480,4 +502,52 @@ export async function chatOnProjectBySlug(slug, userId, prompt) {
   }
 
   return reviseAndSave(project, prompt);
+}
+
+
+
+// Update a project's name, description, URL slug and/or thumbnail.
+// Only the fields present in `details` are validated and changed.
+export async function updateProjectDetails(id, userId, details) {
+  requireUser(userId);
+
+  if (!mongoose.isValidObjectId(id)) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  // Same schema the edit dialog uses. Unknown fields are dropped.
+  const parsed = projectDetailsSchema.safeParse(details ?? {});
+  if (!parsed.success) {
+    throw new HttpError(400, parsed.error.issues[0].message);
+  }
+
+  const updates = parsed.data;
+
+  if (updates.slug && (await isSlugTaken(userId, updates.slug, id))) {
+    throw new HttpError(409, "That URL is already used by another project");
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new HttpError(400, "Nothing to update");
+  }
+
+  const project = await Project.findOneAndUpdate(
+    { _id: id, owner: userId },
+    { $set: updates },
+    { returnDocument: "after" },
+  );
+
+  if (!project) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  return {
+    _id: project._id,
+    name: project.name,
+    slug: project.slug,
+    description: project.description,
+    thumbnail: project.thumbnail,
+    version: project.version,
+    updatedAt: project.updatedAt,
+  };
 }
