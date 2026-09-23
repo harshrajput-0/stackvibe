@@ -5,7 +5,7 @@ import {
   updateProjectFiles,
   updateProjectDetails,
   deleteProject,
-} from "@/controllers/project.controller";
+} from "@/controllers/project.controller.js";
 import { HttpError } from "@/lib/httpErrors";
 
 export async function GET(req, { params }) {
