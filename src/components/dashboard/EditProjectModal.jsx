@@ -24,6 +24,15 @@ function EditProjectForm({ project, isSaving, onSave, onClose }) {
   const [serverError, setServerError] = useState({ field: "", message: "" });
   const { errors, validate, clear } = useFieldErrors();
 
+  // `useFieldErrors.validate` runs a zod schema via `.safeParse`, so reuse
+  // the shared project schema instead of hand-rolled per-field validators.
+  // Only `name`/`slug` are checked here — description and thumbnail don't
+  // need pre-submit validation.
+  const editFieldsSchema = projectDetailsSchema.pick({
+    name: true,
+    slug: true,
+  });
+
   function handleTitleChange(value) {
     setTitle(value);
     clear("name");
@@ -61,9 +70,7 @@ function EditProjectForm({ project, isSaving, onSave, onClose }) {
     event.preventDefault();
     setServerError({ field: "", message: "" });
 
-    if (
-      !validate({ title, slug }, { title: validateTitle, slug: validateSlug })
-    ) {
+    if (!validate({ name: title, slug }, editFieldsSchema)) {
       return;
     }
     if (!hasChanges) return;

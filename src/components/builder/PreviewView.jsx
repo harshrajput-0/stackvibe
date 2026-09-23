@@ -60,9 +60,9 @@ export function PreviewView({ chromeUrl, siteName, files = {} }) {
         {/* Fake browser header with controls and URL */}
         <div className="flex h-9.5 flex-none items-center gap-2 border-b border-gray-200 px-3.5">
           <div className="flex gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-dotr!" />
-            <span className="h-2 w-2 rounded-full bg-doty!" />
-            <span className="h-2 w-2 rounded-full bg-dotg!" />
+            <span className="h-2 w-2 rounded-full bg-(--dotr)!" />
+            <span className="h-2 w-2 rounded-full bg-(--doty)!" />
+            <span className="h-2 w-2 rounded-full bg-(--dotg)!" />
           </div>
 
           {/* Displays the preview URL */}
