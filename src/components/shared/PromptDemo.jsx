@@ -163,7 +163,7 @@ export function PromptDemo({
       <div aria-hidden="true">
         <div
           className={cn(
-            "flex items-center rounded-[var(--radius-md)] border border-white/16 bg-white/4 pr-2 pl-4 font-(family-name:--mono) text-(--gray-200)",
+            "flex items-center rounded-md border border-white/16 bg-white/4 pr-2 pl-4 font-(family-name:--mono) text-(--gray-200)",
             styles.prompt,
           )}
         >
@@ -174,11 +174,11 @@ export function PromptDemo({
           </span>
         </div>
 
-        <div className="mt-3.5 overflow-hidden rounded-[var(--radius-md)] bg-white text-(--black) shadow-[0_28px_60px_-24px_rgba(0,0,0,0.7)]">
+        <div className="mt-3.5 overflow-hidden rounded-md bg-white text-(--black) shadow-[0_28px_60px_-24px_rgba(0,0,0,0.7)]">
           <div className="flex items-center gap-1.25 border-b border-(--gray-200) bg-(--gray-50) px-3 py-2.25">
-            <i className="size-1.75 rounded-full bg-(--gray-300)" />
-            <i className="size-1.75 rounded-full bg-(--gray-300)" />
-            <i className="size-1.75 rounded-full bg-(--gray-300)" />
+            <i className="size-1.75 rounded-full bg-(--dotr)" /> 
+            <i className="size-1.75 rounded-full bg-(--doty)" />
+            <i className="size-1.75 rounded-full bg-(--dotg)" />
             <span className="ml-2.5 font-(family-name:--mono) text-[11px] text-(--gray-500)">
               {example.url}
             </span>

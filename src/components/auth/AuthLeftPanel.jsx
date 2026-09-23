@@ -1,4 +1,6 @@
 import { Logo } from "@/components/ui/Logo";
+import { PromptDemo } from "../shared/PromptDemo";
+import { DEMO_EXAMPLES } from "@/lib/constants";
 
 export function AuthLeftPanel() {
   return (
@@ -17,6 +19,7 @@ export function AuthLeftPanel() {
           Describe what you want, and StackVibe writes, previews, and publishes
           the site for you.
         </p>
+        <PromptDemo examples={DEMO_EXAMPLES} size="sm" className="mt-8.5" />
       </div>
       <div className="text-[13px] text-gray-500 max-[640px]:hiddent">
         © 2026 StackVibe
