@@ -23,3 +23,42 @@ export const PREVIEW_INDEX_HTML = `<!DOCTYPE html>
   </body>
 </html>
 `;
+// ---- Added for the downloadable project (Vite) ----
+
+// Root index.html for Vite. Mirrors the CDN resources the live preview uses
+// (see EXTERNAL_RESOURCES in PreviewView.jsx) so the site looks the same.
+export const DOWNLOAD_INDEX_HTML = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/index.js"></script>
+  </body>
+</html>
+`;
+
+// Generated files are .js but contain JSX, so Vite must treat .js as JSX.
+export const DOWNLOAD_VITE_CONFIG = `import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react({ include: /\\.(js|jsx)$/ })],
+  esbuild: {
+    loader: "jsx",
+    include: /src\\/.*\\.jsx?$/,
+    exclude: [],
+  },
+  optimizeDeps: {
+    esbuildOptions: { loader: { ".js": "jsx" } },
+  },
+});
+`;

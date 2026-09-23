@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Project from "@/models/project.model.js";
 import { slugify } from "@/lib/utils/slugify.js";
+import { isReservedSlug } from "@/lib/reservedSlugs.js";
 import { projectDetailsSchema } from "@/lib/validators/project.js";
 import { hashContent } from "@/lib/utils/hashContent.js";
 import { HttpError } from "@/lib/httpErrors.js";
@@ -29,6 +30,36 @@ async function isSlugTaken(owner, slug, excludeId) {
   const filter = { owner, slug };
   if (excludeId) filter._id = { $ne: excludeId };
   return Boolean(await Project.exists(filter));
+}
+
+// Is this slug already used by a *published* site (owned by anyone)?
+//
+// Slugs only have to be unique per owner while a project is a draft
+// (see isSlugTaken above). But a published site is reached at
+// stackvibe.vercel.app/<slug> for the whole world, so two published sites
+// can never share a slug. `excludeId` lets a project ignore itself.
+async function isPublishedSlugTaken(slug, excludeId) {
+  const filter = { slug, published: true };
+  if (excludeId) filter._id = { $ne: excludeId };
+  return Boolean(await Project.exists(filter));
+}
+
+// Throws an error if `slug` can't be used as a public URL.
+// Used when publishing a site and when changing a project's URL.
+async function assertSlugIsAvailableForPublic(slug, projectId) {
+  if (isReservedSlug(slug)) {
+    throw new HttpError(
+      400,
+      "That URL is reserved. Pick a different one in the project details.",
+    );
+  }
+
+  if (await isPublishedSlugTaken(slug, projectId)) {
+    throw new HttpError(
+      409,
+      "That URL is already used by another published site. Pick a different one in the project details.",
+    );
+  }
 }
 
 // Slug for a new project: "coffee-shop", then "coffee-shop-2", "-3", …
@@ -315,10 +346,30 @@ export async function updateProjectFiles(id, userId, files) {
   };
 }
 
-// Publish a project
+// Publish a project: after this, anyone can visit it at
+// stackvibe.vercel.app/<slug> (see src/app/[slug]/page.js).
 export async function publishProject(id, userId) {
   requireUser(userId);
 
+  // An id that isn't a valid Mongo id can never match a project.
+  if (!mongoose.isValidObjectId(id)) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  // Step 1: find the user's own project (we only need its slug here).
+  const existing = await Project.findOne({ _id: id, owner: userId }).select(
+    "slug",
+  );
+
+  if (!existing) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  // Step 2: make sure the slug is allowed to be public
+  // (not a reserved word, not used by someone else's published site).
+  await assertSlugIsAvailableForPublic(existing.slug, id);
+
+  // Step 3: flip the switch. From now on the public page can find it.
   const project = await Project.findOneAndUpdate(
     { _id: id, owner: userId },
     { published: true },
@@ -332,6 +383,7 @@ export async function publishProject(id, userId) {
   return {
     _id: project._id,
     name: project.name,
+    slug: project.slug,
     description: project.description,
     version: project.version,
     published: project.published,
@@ -356,6 +408,23 @@ export async function getPublicProject(id) {
     description: project.description,
     files: filesToObject(project.files),
     version: project.version,
+  };
+}
+
+
+export async function getPublicProjectBySlug(slug) {
+  const project = await Project.findOne({ slug, published: true });
+
+  if (!project) {
+    throw new HttpError(404, "Site not found");
+  }
+
+  // Only send what the public page needs. Never send the owner's id,
+  // the chat history, etc.
+  return {
+    name: project.name,
+    description: project.description,
+    files: filesToObject(project.files),
   };
 }
 
@@ -529,11 +598,16 @@ export async function updateProjectDetails(id, userId, details) {
     throw new HttpError(409, "That URL is already used by another project");
   }
 
+
+  if (updates.slug) {
+    await assertSlugIsAvailableForPublic(updates.slug, id);
+  }
+
   if (Object.keys(updates).length === 0) {
     throw new HttpError(400, "Nothing to update");
   }
 
-  const project = await Project.findOneAndUpdate(
+  const project = await Project.findOneAndUpdate( 
     { _id: id, owner: userId },
     { $set: updates },
     { returnDocument: "after" },

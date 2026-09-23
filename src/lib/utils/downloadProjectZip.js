@@ -3,7 +3,8 @@ import { saveAs } from "file-saver";
 import { slugify } from "./slugify";
 import {
   PREVIEW_ENTRY_CODE,
-  PREVIEW_INDEX_HTML,
+  DOWNLOAD_INDEX_HTML,
+  DOWNLOAD_VITE_CONFIG,
 } from "@/lib/generation/previewTemplate";
 
 
@@ -25,10 +26,19 @@ export async function downloadProjectZip(files = {}, projectName = "project") {
   // Add package.json to the downloaded project
   zip.file("package.json", buildPackageJson(projectName));
 
-  // Add default ENTRY_CODE file if index.html is absent
-  zip.file("public/index.html", PREVIEW_INDEX_HTML);
+  // Vite expects index.html at the project root (not in /public) and a
+  // config that lets it parse JSX inside the .js files the AI generates.
+  zip.file("index.html", DOWNLOAD_INDEX_HTML);
+  zip.file("vite.config.js", DOWNLOAD_VITE_CONFIG);
+
+  // Add default entry file if the AI didn't generate one
   if (!normalizedPaths.has("/index.js")) {
     zip.file("src/index.js", PREVIEW_ENTRY_CODE);
+  }
+
+  // The entry imports ./styles.css, so make sure it exists
+  if (!normalizedPaths.has("/styles.css")) {
+    zip.file("src/styles.css", "");
   }
 
   // Convert everything inside the ZIP into a browser Blob.
@@ -44,34 +54,26 @@ function normalizePath(path) {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
-// Creates the package.json content for the downloaded React project.
+// Creates the package.json content for the downloaded React (Vite) project.
 function buildPackageJson(projectName) {
   return JSON.stringify(
     {
       name: slugify(projectName),
       version: "0.1.0",
       private: true,
+      type: "module",
+      scripts: {
+        dev: "vite",
+        build: "vite build",
+        preview: "vite preview",
+      },
       dependencies: {
         react: "^19.2.8",
         "react-dom": "^19.2.8",
-        "react-scripts": "^5.0.1",
       },
-      scripts: {
-        start: "react-scripts start",
-        build: "react-scripts build",
-        test: "react-scripts test",
-        eject: "react-scripts eject",
-      },
-      eslintConfig: {
-        extends: ["react-app"],
-      },
-      browserslist: {
-        production: [">0.2%", "not dead", "not op_mini all"],
-        development: [
-          "last 1 chrome version",
-          "last 1 firefox version",
-          "last 1 safari version",
-        ],
+      devDependencies: {
+        "@vitejs/plugin-react": "^4.7.0",
+        vite: "^6.4.0",
       },
     },
     null,
