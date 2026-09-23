@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useSignUpForm } from "@/hooks/useSignUpForm";
-import { SocialButtons } from "./SocialButtons";
-import { Input, Divider, Button } from "../ui";
-import FormHeader from "./FormHeader";
+import { Input, FieldHint, Button, FormError } from "@/components/ui";
+import { MIN_PASSWORD_LENGTH } from "@/lib/validators/auth";
+import { AuthFormLayout } from "./AuthFormLayout";
 
 export function SignUpForm() {
   const {
@@ -17,6 +16,7 @@ export function SignUpForm() {
     code,
     setCode,
     error,
+    fieldErrors,
     isSubmitting,
     needsVerification,
     submit,
@@ -26,10 +26,11 @@ export function SignUpForm() {
 
   if (needsVerification) {
     return (
-      <div className="w-full max-w-90">
-        <h2>Check your email</h2>
-        <p className="sub">Enter the verification code we sent to {email}.</p>
-        <form onSubmit={submitVerification}>
+      <AuthFormLayout
+        heading="Check your email"
+        description={`Enter the verification code we sent to ${email}.`}
+      >
+        <form onSubmit={submitVerification} noValidate>
           <Input
             id="auth-code"
             name="code"
@@ -41,38 +42,37 @@ export function SignUpForm() {
             value={code}
             onChange={(event) => setCode(event.target.value)}
             required
+            className="mt-6"
           />
-          {error && (
-            <div className="field">
-              <div className="error">{error}</div>
-            </div>
-          )}
-          <button
-            className="btn btn-primary btn-block"
+          <FormError>{error}</FormError>
+          <Button
+            variant="primary"
             type="submit"
-            disabled={isSubmitting}
+            loading={isSubmitting}
+            className="mt-5.5 w-full"
           >
             {isSubmitting ? "Verifying…" : "Verify email"}
-          </button>
+          </Button>
         </form>
-      </div>
+      </AuthFormLayout>
     );
   }
 
   return (
-    <div className="w-full max-w-90">
-      <FormHeader
-        heading="Create your account"
-        description="Start building with StackVibe for free"
-      />
-      <SocialButtons
-        onGoogle={() => submitOAuth("oauth_google")}
-        onGithub={() => submitOAuth("oauth_github")}
-      />
-
-     <Divider />
-
-      <form onSubmit={submit}>
+    <AuthFormLayout
+      heading="Create your account"
+      description="Free to start. No card needed."
+      oauth={{
+        onGoogle: () => submitOAuth("oauth_google"),
+        onGithub: () => submitOAuth("oauth_github"),
+      }}
+      switchTo={{
+        prompt: "Already have an account?",
+        label: "Sign in",
+        href: "/sign-in",
+      }}
+    >
+      <form onSubmit={submit} noValidate>
         <Input
           id="auth-name"
           name="name"
@@ -82,7 +82,8 @@ export function SignUpForm() {
           autoComplete="name"
           value={name}
           onChange={(event) => setName(event.target.value)}
-          required
+          error={fieldErrors.name}
+          className="mt-4"
         />
         <Input
           id="auth-email"
@@ -93,48 +94,39 @@ export function SignUpForm() {
           autoComplete="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          required
+          error={fieldErrors.email}
+          className="mt-4"
         />
         <Input
           id="auth-pass"
           name="password"
           label="Password"
           variant="password"
-          placeholder="••••••••"
+          placeholder="At least 8 characters"
           autoComplete="new-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          required
+          error={fieldErrors.password}
+          hint={
+            <FieldHint met={password.length >= MIN_PASSWORD_LENGTH}>
+              Use {MIN_PASSWORD_LENGTH} or more characters.
+            </FieldHint>
+          }
+          className="mt-4"
         />
-        {error && (
-          <div className="field">
-            <div className="error">{error}</div>
-          </div>
-        )}
+        <FormError>{error}</FormError>
         <Button
           variant="primary"
           type="submit"
-          disabled={isSubmitting}
-          className="w-full"
+          loading={isSubmitting}
+          className="mt-5.5 w-full"
         >
           {isSubmitting ? "Creating account…" : "Create account"}
         </Button>
       </form>
 
- 
-
-      <div className="mt-6.5 text-center text-[13px] text-gray-500">
-        Already have an account?{" "}
-        <Link
-          href="/sign-in"
-          className="font-semibold text-gray-700! hover:text-gray-900! hover:underline"
-        >
-          Sign in
-        </Link>
-      </div>
-
       {/* Required mount point for Clerk's invisible bot-protection challenge */}
       <div id="clerk-captcha" />
-    </div>
+    </AuthFormLayout>
   );
 }

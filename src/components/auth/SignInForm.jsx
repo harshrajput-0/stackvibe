@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useSignInForm } from "@/hooks/useSignInForm";
-import { SocialButtons } from "./SocialButtons";
-import { Input, Divider, Button } from "@/components/ui";
-import FormHeader from "./FormHeader";
+import { Input, Button, FormError } from "@/components/ui";
+import { AuthFormLayout } from "./AuthFormLayout";
 
 export function SignInForm() {
   const {
@@ -13,25 +11,27 @@ export function SignInForm() {
     password,
     setPassword,
     error,
+    fieldErrors,
     isSubmitting,
     submit,
     submitOAuth,
   } = useSignInForm();
 
   return (
-    <div className="w-full max-w-90">
-      <FormHeader
-        heading="Sign in"
-        description="Welcome back. Choose how you'd like to continue."
-      />
-      <SocialButtons
-        onGoogle={() => submitOAuth("oauth_google")}
-        onGithub={() => submitOAuth("oauth_github")}
-      />
-
-      <Divider />
-
-      <form onSubmit={submit}>
+    <AuthFormLayout
+      heading="Sign in"
+      description="Welcome back. Choose how you'd like to continue."
+      oauth={{
+        onGoogle: () => submitOAuth("oauth_google"),
+        onGithub: () => submitOAuth("oauth_github"),
+      }}
+      switchTo={{
+        prompt: "New to StackVibe?",
+        label: "Create an account",
+        href: "/sign-up",
+      }}
+    >
+      <form onSubmit={submit} noValidate>
         <Input
           id="auth-email"
           name="email"
@@ -41,7 +41,8 @@ export function SignInForm() {
           autoComplete="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          required
+          error={fieldErrors.email}
+          className="mt-4"
         />
         <Input
           id="auth-pass"
@@ -52,34 +53,19 @@ export function SignInForm() {
           autoComplete="current-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          required
+          error={fieldErrors.password}
+          className="mt-4"
         />
-        {error && (
-          <div className="field">
-            <div className="error">{error}</div>
-          </div>
-        )}
+        <FormError>{error}</FormError>
         <Button
           variant="primary"
           type="submit"
-          disabled={isSubmitting}
-          className="w-full"
+          loading={isSubmitting}
+          className="mt-5.5 w-full"
         >
           {isSubmitting ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-
-
-
-      <div className="mt-6.5 text-center text-[13px] text-gray-500">
-        New to StackVibe?{" "}
-        <Link
-          href="/sign-up"
-          className="font-semibold text-gray-700! hover:text-gray-900! hover:underline"
-        >
-          Create an account
-        </Link>
-      </div>
-    </div>
+    </AuthFormLayout>
   );
 }
