@@ -4,7 +4,15 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
-export function PublishModal({ isOpen, onClose, publishUrl }) {
+export function PublishModal({
+  isOpen,
+  onClose,
+  publishUrl,
+  isPublished,
+  isPublishing,
+  publishError,
+  onPublish,
+}) {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
@@ -34,7 +42,9 @@ export function PublishModal({ isOpen, onClose, publishUrl }) {
               Publish your site
             </h3>
             <div className="mt-1.25 text-[13px] text-(--gray-500)">
-              Your changes will go live at this address.
+              {isPublished
+                ? "Your site is live at this address."
+                : "Your changes will go live at this address."}
             </div>
           </div>
           <button
@@ -55,8 +65,18 @@ export function PublishModal({ isOpen, onClose, publishUrl }) {
           </Button>
         </div>
 
-        <Button variant="primary" block className="mt-5" onClick={onClose}>
-          Publish
+        {publishError && (
+          <div className="mt-3 text-[13px] text-red-600">{publishError}</div>
+        )}
+
+        <Button
+          variant="primary"
+          block
+          className="mt-5"
+          loading={isPublishing}
+          onClick={onPublish}
+        >
+          {isPublished ? "Republish" : "Publish"}
         </Button>
       </div>
     </div>

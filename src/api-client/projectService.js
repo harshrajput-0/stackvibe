@@ -75,3 +75,16 @@ export async function deleteProject(id) {
     throw await toApiError(response, "Failed to delete the project");
   }
 }
+
+// PUBLISH PROJECT
+export async function publishProject(id) {
+  const response = await fetch(`/api/projects/${id}/publish`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, "Failed to publish the project");
+  }
+
+  return response.json();
+}

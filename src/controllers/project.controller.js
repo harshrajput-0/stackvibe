@@ -230,6 +230,7 @@ function serializeProject(project) {
     currentFile: project.currentFile,
     error: project.error,
     createdAt: project.createdAt,
+    published: project.published,
   };
 };
 
@@ -333,6 +334,7 @@ export async function publishProject(id, userId) {
     name: project.name,
     description: project.description,
     version: project.version,
+    published: project.published,
   };
 }
 

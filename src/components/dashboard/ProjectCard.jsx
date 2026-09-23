@@ -16,6 +16,11 @@ export const ProjectCard = ({ project, onOpen, onEdit, onDelete }) => {
         <ProjectThumb src={project.thumbnail} />
         <div className="bg-white px-3.75 py-3.25">
           <div className="text-sm font-semibold">{project.name}</div>
+          {project.description && (
+            <p className="mt-0.75 line-clamp-2 text-xs text-(--gray-500)">
+              {project.description}
+            </p>
+          )}
           <div className="mt-0.75 text-xs text-(--gray-500)">
             {project.meta ?? `Edited ${edited}`}
           </div>
