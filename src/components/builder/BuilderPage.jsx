@@ -75,14 +75,10 @@ export function BuilderPage({ projectSlug }) {
 
 
 
-  // Monitor generation when URL contains "mdoe=generate"
-  useEffect(() => {
-    if (!isGenerating || hasStartedGeneration.current) return;
-    hasStartedGeneration.current = true;
-
-    // Check backend for generation process
-    generation.start(projectSlug, (finishedProject) => {
-
+  // Runs once generation finishes successfully — shared by the initial
+  // kickoff below and by a manual retry after a failure.
+  const handleGenerationComplete = useCallback(
+    (finishedProject) => {
       // Update UI with completed project
       applyProject(finishedProject);
       chat.appendMessage({
@@ -90,10 +86,28 @@ export function BuilderPage({ projectSlug }) {
         role: "ai",
         text: "Website generation complete! Take a look at the code — tell me what to change.",
       });
-      view.showCode();                                                                                       // Switch to code view after completion
-    });
+      view.showCode(); // Switch to code view after completion
+    },
+    // chat/view identities are stable; applyProject already excluded above
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  // Monitor generation when URL contains "mode=generate"
+  useEffect(() => {
+    if (!isGenerating || hasStartedGeneration.current) return;
+    hasStartedGeneration.current = true;
+
+    // Check backend for generation process
+    generation.start(projectSlug, handleGenerationComplete);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGenerating, projectSlug]);
+
+  // Re-runs the same generation job after a failure. The backend restarts
+  // from scratch today (step 4+ will make this resume from saved files).
+  const handleGenerationRetry = useCallback(() => {
+    generation.start(projectSlug, handleGenerationComplete);
+  }, [generation, projectSlug, handleGenerationComplete]);
 
   const projectName = project?.name || fallbackName;
   const chromeUrl = `${PUBLIC_HOST}/${projectSlug}`; // Project URL shown in the sandbox chrome bar and publish modal
@@ -162,6 +176,8 @@ export function BuilderPage({ projectSlug }) {
               total={generation.total}
               fileStatuses={generation.fileStatuses}
               plannedFiles={generation.plannedFiles}
+              error={generation.error}
+              onRetry={handleGenerationRetry}
             />
           )}
 

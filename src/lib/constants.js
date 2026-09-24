@@ -161,3 +161,23 @@ export const DEMO_EXAMPLES = [
     ],
   },
 ];
+
+
+// Rotating status copy shown in the generating view's activity panel.
+export const PLANNING_MESSAGES = [
+  "Reading your idea",
+  "Planning the structure",
+  "Deciding which files you need",
+  "Still planning, almost there",
+];
+
+export const BUILD_MESSAGES = [
+  "Sketching the layout",
+  "Choosing colors and type",
+  "Wiring up components",
+  "Polishing the details",
+  "Still working on it",
+];
+
+export const MESSAGE_ROTATE_MS = 3200;
+export const SLOW_GENERATION_NOTE_MS = 14000;
