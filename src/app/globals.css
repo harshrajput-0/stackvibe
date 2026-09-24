@@ -78,14 +78,39 @@ a {
   outline-offset: 2px;
 }
 
-@keyframes fade-in {
+/* Calm, never-ending activity blocks shown while the AI agent is working
+   (see GenerationActivityPanel). Purely decorative — not tied to real
+   progress — so a long wait still feels active. */
+@keyframes wave {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Progress bar sheen (fill) and idle sweep (planning phase, no percent
+   known yet) — see GeneratingView. */
+@keyframes bar-sheen {
+  to {
+    transform: translateX(200%);
+  }
+}
+@keyframes bar-idle {
   from {
-    opacity: 0;
-    transform: translateY(4px);
+    transform: translateX(0%);
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: translateX(257%);
+  }
+}
+@keyframes skeleton-shimmer {
+  to {
+    background-position: -200% 0;
   }
 }
 

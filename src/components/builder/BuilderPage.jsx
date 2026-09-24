@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Builder UI
 import { BuilderTopBar } from "./BuilderTopBar";
 import { ChatPanel } from "./ChatPanel";
 import { GeneratingView } from "./GeneratingView";
+import { LimitReachedView } from "./LimitReachedView";
+import { FileFailedView } from "./FileFailedView";
 import { PreviewView } from "./PreviewView";
 import { CodeView } from "./CodeView";
 import { PublishModal } from "./PublishModal";
@@ -19,9 +21,11 @@ import { usePublishModal } from "@/hooks/usePublishModal";
 
 // API for loading function from backend
 import { getProjectBySlug, publishProject } from "@/api-client/projectService";
+import { retryProjectFile } from "@/api-client/generationService";
 import { PUBLIC_HOST } from "@/lib/constants";
 
 export function BuilderPage({ projectSlug }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isGenerating = searchParams.get("mode") === "generate";
   const fallbackName = searchParams.get("name") || toTitleCase(projectSlug);
@@ -36,6 +40,9 @@ export function BuilderPage({ projectSlug }) {
   const [loadError, setLoadError] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
+  const [retryingPath, setRetryingPath] = useState(null);
+  const [isRetryingAll, setIsRetryingAll] = useState(false);
+  const [retryError, setRetryError] = useState("");
   const hasStartedGeneration = useRef(false);
 
   // Update builder with latest project data
@@ -73,25 +80,28 @@ export function BuilderPage({ projectSlug }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectSlug]);
 
+  // Called once generation genuinely finishes (not "limit" — that's handled
+  // by the isLimited effect below). If any files fell back to a placeholder
+  // we show that honestly instead of jumping straight to the code view.
+  function handleGenerationComplete(finishedProject) {
+    applyProject(finishedProject);
 
-
-  // Runs once generation finishes successfully — shared by the initial
-  // kickoff below and by a manual retry after a failure.
-  const handleGenerationComplete = useCallback(
-    (finishedProject) => {
-      // Update UI with completed project
-      applyProject(finishedProject);
+    if (finishedProject.filesFailed?.length > 0) {
+      chat.appendMessage({
+        id: "generation-complete",
+        role: "ai",
+        text: `Built ${(finishedProject.filesPlanned?.length || 0) - finishedProject.filesFailed.length} of ${finishedProject.filesPlanned?.length || 0} files. A few couldn't be generated — you can retry them individually.`,
+      });
+      view.showFailed();
+    } else {
       chat.appendMessage({
         id: "generation-complete",
         role: "ai",
         text: "Website generation complete! Take a look at the code — tell me what to change.",
       });
-      view.showCode(); // Switch to code view after completion
-    },
-    // chat/view identities are stable; applyProject already excluded above
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+      view.showCode();
+    }
+  }
 
   // Monitor generation when URL contains "mode=generate"
   useEffect(() => {
@@ -103,11 +113,14 @@ export function BuilderPage({ projectSlug }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGenerating, projectSlug]);
 
-  // Re-runs the same generation job after a failure. The backend restarts
-  // from scratch today (step 4+ will make this resume from saved files).
-  const handleGenerationRetry = useCallback(() => {
-    generation.start(projectSlug, handleGenerationComplete);
-  }, [generation, projectSlug, handleGenerationComplete]);
+  // The AI's rate limit stopped generation partway through — switch to the
+  // "AI limit reached" card as soon as the poller notices.
+  useEffect(() => {
+    if (generation.isLimited) {
+      view.showLimit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generation.isLimited]);
 
   const projectName = project?.name || fallbackName;
   const chromeUrl = `${PUBLIC_HOST}/${projectSlug}`; // Project URL shown in the sandbox chrome bar and publish modal
@@ -133,6 +146,70 @@ export function BuilderPage({ projectSlug }) {
     }
   }
 
+  // Resume a generation that stopped on the AI limit. The hook flips the
+  // project back to an active status server-side and starts polling again.
+  function handleResume() {
+    view.showGenerating();
+    generation.resume().then(() => {
+      // If resuming errors out synchronously (e.g. network), stay put —
+      // useGeneration surfaces the error via generation.error.
+    });
+    // Once polling reports completion, handleGenerationComplete runs again
+    // (same callback passed to generation.start on the initial mount).
+  }
+
+  function handleBackToProjects() {
+    router.push("/dashboard");
+  }
+
+  // Retry a single file that fell back to a placeholder. Runs synchronously
+  // server-side (one file), so we just swap in the updated project.
+  async function handleRetryFile(path) {
+    if (!project?.slug || retryingPath || isRetryingAll) return;
+
+    setRetryingPath(path);
+    setRetryError("");
+    try {
+      const updated = await retryProjectFile(project.slug, path);
+      applyProject(updated);
+      if (!updated.filesFailed || updated.filesFailed.length === 0) {
+        view.showCode();
+      }
+    } catch (err) {
+      setRetryError(err.message || `Failed to retry ${path}`);
+    } finally {
+      setRetryingPath(null);
+    }
+  }
+
+  // Retry every failed file, one at a time (keeps the single-file retry
+  // endpoint simple and gives the person a live "Retrying…" row per file).
+  async function handleRetryAllFailed() {
+    if (!project?.slug || isRetryingAll || retryingPath) return;
+
+    setIsRetryingAll(true);
+    setRetryError("");
+    let latestProject = project;
+
+    for (const path of latestProject.filesFailed || []) {
+      setRetryingPath(path);
+      try {
+        latestProject = await retryProjectFile(project.slug, path);
+        applyProject(latestProject);
+      } catch (err) {
+        setRetryError(err.message || `Failed to retry ${path}`);
+        break;
+      }
+    }
+
+    setRetryingPath(null);
+    setIsRetryingAll(false);
+
+    if (!latestProject.filesFailed || latestProject.filesFailed.length === 0) {
+      view.showCode();
+    }
+  }
+
   return (
     <div className="flex h-screen flex-col">
       {/* Top bar with project name, view controls, and publish actions. */}
@@ -141,7 +218,6 @@ export function BuilderPage({ projectSlug }) {
         mainView={view.mainView}
         onShowCode={view.showCode}
         onShowPreview={view.showPreview}
-        onOpenPublish={publishModal.open}
         onPublish={publishModal.open}
         files={files}
       />
@@ -156,6 +232,7 @@ export function BuilderPage({ projectSlug }) {
           onInputChange={chat.setInputValue}
           onSend={() => chat.sendMessage(projectSlug, handleFilesUpdated)}
           files={files}
+          disabled={view.mainView === "limit"}
         />
 
         {/* Main area for generation progress, preview, or code. */}
@@ -164,6 +241,11 @@ export function BuilderPage({ projectSlug }) {
           {loadError && (
             <div className="m-4 rounded-md border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
               {loadError}
+            </div>
+          )}
+          {retryError && (
+            <div className="m-4 rounded-md border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
+              {retryError}
             </div>
           )}
 
@@ -176,8 +258,30 @@ export function BuilderPage({ projectSlug }) {
               total={generation.total}
               fileStatuses={generation.fileStatuses}
               plannedFiles={generation.plannedFiles}
-              error={generation.error}
-              onRetry={handleGenerationRetry}
+            />
+          )}
+
+          {/* AI's free-model rate limit stopped generation partway through. */}
+          {view.mainView === "limit" && (
+            <LimitReachedView
+              doneCount={generation.doneCount}
+              total={generation.total}
+              isResuming={generation.isResuming}
+              onResume={handleResume}
+              onBackToProjects={handleBackToProjects}
+            />
+          )}
+
+          {/* Generation finished, but one or more files needed a placeholder. */}
+          {view.mainView === "failed" && (
+            <FileFailedView
+              plannedFiles={project?.filesPlanned || []}
+              filesFailed={project?.filesFailed || []}
+              retryingPath={retryingPath}
+              isRetryingAll={isRetryingAll}
+              onRetryFile={handleRetryFile}
+              onRetryAllFailed={handleRetryAllFailed}
+              onOpenPreview={view.showPreview}
             />
           )}
 

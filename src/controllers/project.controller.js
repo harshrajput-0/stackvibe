@@ -5,7 +5,13 @@ import { isReservedSlug } from "@/lib/reservedSlugs.js";
 import { projectDetailsSchema } from "@/lib/validators/project.js";
 import { hashContent } from "@/lib/utils/hashContent.js";
 import { HttpError } from "@/lib/httpErrors.js";
-import { generateProject, reviseProject } from "@/lib/generation/ai.js";
+import {
+  generateProject,
+  generateRemainingFiles,
+  generateSingleFile,
+  isRateLimitError,
+  reviseProject,
+} from "@/lib/generation/ai.js";
 import { applyOperations } from "@/lib/generation/diff.js";
 
 function requireUser(userId) {
@@ -135,96 +141,282 @@ const project = await Project.create({
   };
 }
 
+// Shared progress callbacks for both a fresh build and a resume — both just
+// need to record the plan (if any), which file is in flight, and each
+// file's content as it lands.
+function makeGenerationCallbacks(projectId) {
+  return {
+    onPlan: async (plan) => {
+      console.log(`[Assistant] Plan created for the project ${projectId}.
+          Planned ${plan.files.length} files`);
+
+      const fileList = plan.files.map((f) => `- \`${f.path}\`: ${f.description}`).join("\n");
+
+      await Project.findByIdAndUpdate(projectId, {
+        name: plan.projectName || "Generated Project",
+        status: "generating",
+        filesPlanned: plan.files,
+        $push: {
+          messages: {
+            role: "assistant",
+            content: `Planned website structure:\n${fileList}`,
+            timestamp: new Date(),
+          }
+        }
+      })
+    },
+
+    onFileStart: async (path) => {
+      console.log(`[Assistant] Starting file ${path} for project ${projectId}`);
+
+      await Project.findByIdAndUpdate(projectId, {
+        currentFile: path,
+      })
+    },
+
+    // FIXED: this condition was inverted (`if (!project)`), which meant
+    // generated file content never got saved on the normal/happy path,
+    // and threw on `project.files` when the project genuinely wasn't found.
+    onFileComplete: async (path, code) => {
+      console.log(`[Assistant] Finished file ${path} for project ${projectId}`);
+
+      const project = await Project.findById(projectId);
+
+      if (project) {
+        project.files = project.files || {};
+        project.files[path] = { content: code, hash: hashContent(code) };
+        project.filesGenerated = [...(project.filesGenerated || []), path];
+        project.messages.push({
+          role: "assistant",
+          content: `Created file "${path}"`,
+          timestamp: new Date(),
+        });
+        project.currentFile = null;
+        project.markModified("files");
+        await project.save();
+      }
+    }
+  };
+}
+
+// Persist the "still writing files, but the AI's rate limit kicked in"
+// state. Progress already saved via the onFileComplete callback is left
+// untouched — only the status changes, so Resume building can pick up
+// exactly where things stopped.
+async function markGenerationLimited(projectId, remainingCount) {
+  await Project.findByIdAndUpdate(projectId, {
+    status: "limit",
+    currentFile: null,
+    $push: {
+      messages: {
+        role: "assistant",
+        content:
+          remainingCount > 0
+            ? `AI limit reached. ${remainingCount} file${remainingCount === 1 ? "" : "s"} still need${remainingCount === 1 ? "s" : ""} to be written — resume building once the limit clears.`
+            : "AI limit reached while planning the project. Resume building once the limit clears.",
+        timestamp: new Date(),
+      },
+    },
+  });
+}
+
+// Persist a completed generation. `result.failedFiles` (files that fell
+// back to a placeholder after every retry) is stored as-is — the builder
+// shows those as a "Built N of M files" state with a per-file retry.
+async function markGenerationComplete(projectId, result) {
+  const project = await Project.findById(projectId);
+  if (!project) return;
+
+  const total = project.filesPlanned?.length || 0;
+  const failedFiles = result.failedFiles || [];
+
+  project.status = "completed";
+  project.version = project.version || 1;
+  project.filesFailed = failedFiles;
+  if (result.description) {
+    project.name = result.description;
+  }
+
+  project.messages.push({
+    role: "assistant",
+    content:
+      failedFiles.length > 0
+        ? `Built ${total - failedFiles.length} of ${total} files. ${failedFiles.length} couldn't be generated and use a placeholder for now — you can retry them individually.`
+        : "Website generated successfully! You can view and edit files now",
+    timestamp: new Date(),
+  });
+  await project.save();
+}
+
+// Persist a hard failure (not a rate limit, not a per-file fallback — the
+// whole run threw, e.g. no App.js could be produced at all).
+async function markGenerationFailed(projectId, error) {
+  console.error(`[Assistant] Cannot generate files for project ${projectId}:`, error);
+
+  await Project.findByIdAndUpdate(projectId, {
+    status: "failed",
+    error: error.message,
+    $push: {
+      messages: {
+        role: "assistant",
+        content: `Generation failed: ${error.message}`,
+        timestamp: new Date(),
+      }
+    }
+  })
+}
+
 // Background AI generation job
 export async function runBackgroundGeneration(projectId, prompt) {
   try {
     console.log(`[Assistant]: Start Generation for project ${projectId}`);
 
-    const result = await generateProject(prompt, {
-      onPlan: async (plan) => {
-        console.log(`[Assistant] Plan created for the project ${projectId}.
-          Planned ${plan.files.length} files`);
+    const result = await generateProject(prompt, makeGenerationCallbacks(projectId));
 
-        const fileList = plan.files.map((f) => `- \`${f.path}\`: ${f.description}`).join("\n");
-
-        await Project.findByIdAndUpdate(projectId, {
-          name: plan.projectName || "Generated Project",
-          status: "generating",
-          filesPlanned: plan.files,
-          $push: {
-            messages: {
-              role: "assistant",
-              content: `Planned website structure:\n${fileList}`,
-              timestamp: new Date(),
-            }
-          }
-        })
-      },
-
-      onFileStart: async (path) => {
-        console.log(`[Assistant] Starting file ${path} for project ${projectId}`);
-
-        await Project.findByIdAndUpdate(projectId, {
-          currentFile: path,
-        })
-      },
-
-      // FIXED: this condition was inverted (`if (!project)`), which meant
-      // generated file content never got saved on the normal/happy path,
-      // and threw on `project.files` when the project genuinely wasn't found.
-      onFileComplete: async (path, code) => {
-        console.log(`[Assistant] Finished file ${path} for project ${projectId}`);
-
-        const project = await Project.findById(projectId);
-
-        if (project) {
-          project.files = project.files || {};
-          project.files[path] = { content: code, hash: hashContent(code) };
-          project.filesGenerated = [...(project.filesGenerated || []), path];
-          project.messages.push({
-            role: "assistant",
-            content: `Created file "${path}"`,
-            timestamp: new Date(),
-          });
-          project.currentFile = null;
-          project.markModified("files");
-          await project.save();
-        }
-      }
-    })
+    if (result.limited) {
+      await markGenerationLimited(projectId, result.pendingFiles?.length || 0);
+      return;
+    }
 
     console.log(`[Assistant] Successfully generated project ${projectId}`);
-
-    const project = await Project.findById(projectId);
-
-    if (project) {
-      project.status = "completed";
-      project.version = 1;
-      if (result.description) {
-        project.name = result.description;
-      }
-
-      project.messages.push({
-        role: "assistant",
-        content: "Website generated successfully! You can view and edit files now",
-        timestamp: new Date(),
-      })
-      await project.save();
-    }
+    await markGenerationComplete(projectId, result);
   } catch (error) {
-    console.error(`[Assistant] Cannot generate files for project ${projectId}:`, error);
+    if (error.isRateLimit || isRateLimitError(error)) {
+      await markGenerationLimited(projectId, 0);
+      return;
+    }
+    await markGenerationFailed(projectId, error);
+  }
+}
 
-    await Project.findByIdAndUpdate(projectId, {
-      status: "failed",
-      error: error.message,
-      $push: {
-        messages: {
-          role: "assistant",
-          content: `Generation failed: ${error.message}`,
-          timestamp: new Date(),
-        }
+// Background job that continues a generation which previously stopped on
+// an AI limit — writes only the files that are still missing (or, if the
+// limit hit before a plan even existed, starts the plan over from scratch).
+export async function runBackgroundResume(projectId, prompt) {
+  try {
+    const project = await Project.findById(projectId);
+    if (!project) return;
+
+    const hasPlan = (project.filesPlanned || []).length > 0;
+
+    let result;
+    if (!hasPlan) {
+      result = await generateProject(prompt, makeGenerationCallbacks(projectId));
+    } else {
+      const alreadyGenerated = {};
+      for (const [path, entry] of Object.entries(project.files || {})) {
+        alreadyGenerated[path] = entry.content;
       }
-    })
+      const generatedSet = new Set(project.filesGenerated || []);
+      const pending = project.filesPlanned.filter((f) => !generatedSet.has(f.path));
+
+      result = await generateRemainingFiles(
+        prompt,
+        project.filesPlanned,
+        alreadyGenerated,
+        pending,
+        makeGenerationCallbacks(projectId),
+      );
+    }
+
+    if (result.limited) {
+      await markGenerationLimited(projectId, result.pendingFiles?.length || 0);
+      return;
+    }
+
+    console.log(`[Assistant] Resumed generation complete for project ${projectId}`);
+    await markGenerationComplete(projectId, result);
+  } catch (error) {
+    if (error.isRateLimit || isRateLimitError(error)) {
+      await markGenerationLimited(projectId, 0);
+      return;
+    }
+    await markGenerationFailed(projectId, error);
+  }
+}
+
+// Resume a generation that stopped on an AI limit. Flips the project back
+// into an active status and kicks the rest off in the background — the
+// builder keeps polling the same way it does for a fresh build.
+export async function resumeGenerationBySlug(slug, userId) {
+  requireUser(userId);
+
+  const project = await Project.findOne({ slug, owner: userId });
+  if (!project) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  if (project.status !== "limit") {
+    throw new HttpError(400, "This project isn't waiting on the AI limit.");
+  }
+
+  project.status = (project.filesPlanned || []).length > 0 ? "generating" : "pending";
+  await project.save();
+
+  runBackgroundResume(project._id.toString(), project.description).catch((err) => {
+    console.error(`[Assistant] Unable to resume generation for project ${project._id}:`, err);
+  });
+
+  return serializeProject(project);
+}
+
+// Regenerate a single file that fell back to a placeholder. Runs
+// synchronously (it's one file) so the caller gets the updated project
+// straight back, no polling needed.
+export async function retryFileBySlug(slug, userId, path) {
+  requireUser(userId);
+
+  if (!path || typeof path !== "string") {
+    throw new HttpError(400, "File path is required");
+  }
+
+  const project = await Project.findOne({ slug, owner: userId });
+  if (!project) {
+    throw new HttpError(404, "Project not found");
+  }
+
+  const plannedFile = (project.filesPlanned || []).find((f) => f.path === path);
+  if (!plannedFile) {
+    throw new HttpError(404, "That file isn't part of this project's plan");
+  }
+
+  const alreadyGenerated = {};
+  for (const [p, entry] of Object.entries(project.files || {})) {
+    if (p !== path) alreadyGenerated[p] = entry.content;
+  }
+
+  try {
+    const singleResult = await generateSingleFile(
+      plannedFile,
+      project.filesPlanned,
+      project.description,
+      alreadyGenerated,
+    );
+
+    project.files = project.files || {};
+    project.files[path] = {
+      content: singleResult.code,
+      hash: hashContent(singleResult.code),
+    };
+    project.filesFailed = (project.filesFailed || []).filter((p) => p !== path);
+    if (!(project.filesGenerated || []).includes(path)) {
+      project.filesGenerated = [...(project.filesGenerated || []), path];
+    }
+    project.messages.push({
+      role: "assistant",
+      content: `Retried "${path}" — generated successfully.`,
+      timestamp: new Date(),
+    });
+    project.markModified("files");
+    await project.save();
+
+    return serializeProject(project);
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      throw new HttpError(429, "AI limit reached. Try retrying this file again shortly.");
+    }
+    console.error(`[Assistant] Retry failed for ${path} on project ${project._id}:`, error);
+    throw new HttpError(500, error.message || "Failed to regenerate the file");
   }
 }
 
@@ -258,6 +450,7 @@ function serializeProject(project) {
     status: project.status,
     filesPlanned: project.filesPlanned,
     filesGenerated: project.filesGenerated,
+    filesFailed: project.filesFailed,
     currentFile: project.currentFile,
     error: project.error,
     createdAt: project.createdAt,

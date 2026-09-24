@@ -48,10 +48,10 @@ function ConfirmBody({
         className="mt-5 mb-0"
       />
 
-      <div className="mt-6 grid grid-cols-2 gap-2.5">
+      <div className="mt-6 flex gap-2.5">
         <Button variant="secondary" block onClick={onClose} disabled={loading}>
           {cancelLabel}
-        </Button> 
+        </Button>
         <Button type="submit" variant="danger" block disabled={!ready} loading={loading}>
           {confirmLabel}
         </Button>

@@ -8,7 +8,7 @@ const POLL_INTERVAL_MS = 1500;
 const ACTIVE_STATUSES = ["pending", "generating"];
 
 // Checks the project status repeatedly while AI generation is running.
-export function pollProjectGeneration(slug, { onUpdate, onComplete, onError }) {
+export function pollProjectGeneration(slug, { onUpdate, onComplete, onLimit, onError }) {
   let cancelled = false;
   let timeoutId; //    Stores the ID returned by setTimeout().
 
@@ -25,6 +25,14 @@ export function pollProjectGeneration(slug, { onUpdate, onComplete, onError }) {
 
       if (project.status === "completed") {
         onComplete?.(project);
+        return;
+      }
+
+      // The AI's free-model rate limit kicked in — stop polling and let the
+      // caller show "AI limit reached" with a Resume action. Progress made
+      // so far is already saved on the project.
+      if (project.status === "limit") {
+        onLimit?.(project);
         return;
       }
 
@@ -55,4 +63,43 @@ export function pollProjectGeneration(slug, { onUpdate, onComplete, onError }) {
     cancelled = true;
     clearTimeout(timeoutId);
   };
+}
+
+// Read the server's `{ error }` message off a failed response.
+async function toApiError(response, fallback) {
+  const body = await response.json().catch(() => ({}));
+  const error = new Error(body.error || fallback);
+  error.status = response.status;
+  return error;
+}
+
+// Resume a generation that stopped on the AI limit. The backend flips the
+// project back to an active status and continues in the background — the
+// caller should go back to polling (pollProjectGeneration) right after.
+export async function resumeProjectGeneration(slug) {
+  const response = await fetch(`/api/projects/slug/${slug}/resume`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, "Failed to resume generation");
+  }
+
+  return response.json();
+}
+
+// Regenerate a single file that fell back to a placeholder. Resolves with
+// the updated project once the file is done — no polling involved.
+export async function retryProjectFile(slug, path) {
+  const response = await fetch(`/api/projects/slug/${slug}/retry-file`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, "Failed to retry the file");
+  }
+
+  return response.json();
 }

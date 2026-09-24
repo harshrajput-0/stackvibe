@@ -48,7 +48,7 @@ const projectSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "generating", "revising", "failed", "completed"],
+      enum: ["pending", "generating", "revising", "limit", "failed", "completed"],
       default: "pending",
     },
 
@@ -63,6 +63,15 @@ const projectSchema = new mongoose.Schema(
     },
 
     filesGenerated: {
+      type: [String],
+      default: [],
+    },
+
+    // Paths that never generated cleanly after every retry round and fell
+    // back to a placeholder. Populated when generation (or a resume) still
+    // reaches "completed" but not every file made it — the builder shows
+    // these as a "Built N of M files" state with a per-file retry action.
+    filesFailed: {
       type: [String],
       default: [],
     },
