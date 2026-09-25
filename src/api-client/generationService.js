@@ -8,7 +8,7 @@ const POLL_INTERVAL_MS = 1500;
 const ACTIVE_STATUSES = ["pending", "generating"];
 
 // Checks the project status repeatedly while AI generation is running.
-export function pollProjectGeneration(slug, { onUpdate, onComplete, onError }) {
+export function pollProjectGeneration(slug, { onUpdate, onComplete, onLimit, onError }) {
   let cancelled = false;
   let timeoutId; //    Stores the ID returned by setTimeout().
 
@@ -25,6 +25,13 @@ export function pollProjectGeneration(slug, { onUpdate, onComplete, onError }) {
 
       if (project.status === "completed") {
         onComplete?.(project);
+        return;
+      }
+
+// AI rate limit reached; stop polling and let the UI show a Resume action.
+// Completed progress is already saved on the project.
+      if (project.status === "limit") {
+        onLimit?.(project);
         return;
       }
 
@@ -55,4 +62,42 @@ export function pollProjectGeneration(slug, { onUpdate, onComplete, onError }) {
     cancelled = true;
     clearTimeout(timeoutId);
   };
+}
+
+// Read the server's `{ error }` message off a failed response.
+async function toApiError(response, fallback) {
+  const body = await response.json().catch(() => ({}));
+  const error = new Error(body.error || fallback);
+  error.status = response.status;
+  return error;
+}
+
+// Resume rate-limited generation; the backend continues in the background,
+// so the caller should start polling again afterward.
+export async function resumeProjectGeneration(slug) {
+  const response = await fetch(`/api/projects/slug/${slug}/resume`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, "Failed to resume generation");
+  }
+
+  return response.json();
+}
+
+// Regenerate one failed placeholder file and return the updated project
+// when it finishes; no polling is needed.
+export async function retryProjectFile(slug, path) {
+  const response = await fetch(`/api/projects/slug/${slug}/retry-file`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, "Failed to retry the file");
+  }
+
+  return response.json();
 }
