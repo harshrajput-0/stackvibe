@@ -21,7 +21,36 @@ const openrouter = createOpenAI({
 
 const model = openrouter(MODEL);
 
-async function generateSingleFile(
+// ----------------------- Rate limit detection -----------------------
+// Stop on rate limits instead of wasting retries or creating placeholders.
+// The builder shows "AI limit reached" so generation can be resumed later.
+export function isRateLimitError(error) {
+  if (!error) return false;
+
+  const status =
+    error.statusCode ?? error.status ?? error?.cause?.statusCode ?? error?.cause?.status;
+  if (status === 429) return true;
+
+  const message = String(error.message || error?.cause?.message || "").toLowerCase();
+  return (
+    message.includes("rate limit") ||
+    message.includes("rate-limit") ||
+    message.includes("too many requests") ||
+    message.includes("429")
+  );
+}
+
+// Tag an error as a rate limit so callers up the stack (the controller) can
+// branch on it without re-parsing messages.
+function markRateLimit(error, fallbackMessage) {
+  const tagged =
+    error instanceof Error ? error : new Error(fallbackMessage);
+  tagged.isRateLimit = true;
+  if (!tagged.message) tagged.message = fallbackMessage;
+  return tagged;
+}
+
+export async function generateSingleFile(
   file,
   allFiles,
   prompt,
@@ -80,6 +109,162 @@ Purpose: ${file.description}
     code,
   };
 }
+// Generate pending files with retries, shared by fresh builds and resumes.
+// Stops immediately on rate limits so remaining files can be resumed later.
+async function runGenerationRounds({
+  pendingFiles,
+  allFiles,
+  prompt,
+  files,
+  callbacks,
+  maxRetryRounds = 2,
+}) {
+  pendingFiles = pendingFiles.map((f) => ({ ...f }));
+
+  for (let round = 0; round <= maxRetryRounds; round++) {
+    if (pendingFiles.length === 0) break;
+
+    if (round > 0) {
+      console.log(
+        `[Assistant]: Retrying ${round}/${maxRetryRounds} for ${pendingFiles.length} failed files: ${pendingFiles.map((f) => f.path).join(", ")}`,
+      );
+    }
+
+    const results = await pMap(
+      pendingFiles,
+      async (file) => {
+        try {
+          if (callbacks?.onFileStart) {
+            await callbacks.onFileStart(file.path);
+          }
+
+          const singleResult = await generateSingleFile(
+            file,
+            allFiles,
+            prompt,
+            files,
+          );
+
+          if (callbacks?.onFileComplete) {
+            await callbacks.onFileComplete(file.path, singleResult.code);
+          }
+
+          return { success: true, file, result: singleResult };
+        } catch (error) {
+          return { success: false, file, error };
+        }
+      },
+      { concurrency: MAX_CONCURRENCY },
+    );
+
+    const stillPending = [];
+    let rateLimitHit = false;
+
+    for (const entry of results) {
+      if (entry.success) {
+        const { path, code } = entry.result;
+        files[path.startsWith("/") ? path : "/" + path] = code;
+      } else {
+        if (isRateLimitError(entry.error)) rateLimitHit = true;
+
+        console.warn(
+          `[Assistant]: File ${entry.file.path} failed in round ${round}: ${
+            entry.error?.message || entry.error
+          }`,
+        );
+        stillPending.push(entry.file);
+      }
+    }
+
+    pendingFiles = stillPending;
+
+    // Stop the whole run the moment we see a rate limit — retrying into a
+    // limit just burns more of it, and the remaining files (this round's
+    // stragglers plus anything not yet attempted) need to wait, not fail.
+    if (rateLimitHit) {
+      return { files, failedFiles: [], limited: true, pendingFiles };
+    }
+  }
+
+  // Anything still pending after every round is a genuine failure (not a
+  // rate limit) — placeholder it so the site still loads, and report it so
+  // the builder can offer a per-file retry.
+  const failedFiles = [];
+  if (pendingFiles.length > 0) {
+    const failedPath = pendingFiles.map((f) => f.path).join(", ");
+    console.error(
+      `[Assistant]: Failed to generate ${pendingFiles.length} files after all retry rounds: ${failedPath}`,
+    );
+
+    for (const file of pendingFiles) {
+      const extension = file.path.split(".").pop()?.toLowerCase();
+
+      if (extension === "css") {
+        files[file.path] =
+          `/* ${file.description} — Generation failed, please retry */\n`;
+      } else {
+        files[file.path] =
+          "import React from 'react';\n\n" +
+          `// ⚠️ This file could not be generated. Please retry.\n` +
+          `// Purpose: ${file.description}\n\n` +
+          "export default function Placeholder() {\n" +
+          "  return (\n" +
+          "    <div className='p-8 text-center text-zinc-400'>\n" +
+          "      <p>⚠️ Component failed to generate. Please try again.</p>\n" +
+          "    </div>\n" +
+          "  );\n" +
+          "}\n";
+      }
+
+      failedFiles.push(file.path);
+    }
+  }
+
+  return { files, failedFiles, limited: false, pendingFiles: [] };
+}
+
+// Stub any imports that still don't resolve (a component the model
+// referenced but never planned/generated) so the preview loads with a
+// visible gap instead of a hard crash.
+function stubUnresolvedImports(files) {
+  const unresolvedImports = findUnresolvedImports(files);
+  if (unresolvedImports.length === 0) return;
+
+  console.warn(
+    `[Assistant]: Stubbing ${unresolvedImports.length} unresolved import(s): ${unresolvedImports
+      .map((u) => `'${u.importTarget}' from ${u.fromFile}`)
+      .join(", ")}`,
+  );
+
+  for (const { resolvedPath, isCss } of unresolvedImports) {
+    const alreadyStubbed =
+      files[resolvedPath] ||
+      files[`${resolvedPath}.jsx`] ||
+      files[`${resolvedPath}.css`];
+    if (alreadyStubbed) continue; // two files importing the same missing module
+
+    if (isCss) {
+      files[`${resolvedPath}.css`] =
+        "/* Referenced by an import but never generated. */\n";
+    } else {
+      const rawName = resolvedPath.split("/").pop() || "Missing";
+      const name = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(rawName)
+        ? rawName
+        : "MissingComponent";
+
+      files[`${resolvedPath}.jsx`] =
+        "import React from 'react';\n\n" +
+        `// ⚠️ Referenced by an import but never generated.\n\n` +
+        `export default function ${name}() {\n` +
+        "  return (\n" +
+        "    <div className='p-8 text-center text-zinc-400'>\n" +
+        `      <p>⚠️ "${name}" was referenced but never generated. Try regenerating.</p>\n` +
+        "    </div>\n" +
+        "  );\n" +
+        "}\n";
+    }
+  }
+}
 
 // Generate Project Files: plan -> build with fallback retries
 export async function generateProject(prompt, callbacks) {
@@ -89,13 +274,25 @@ export async function generateProject(prompt, callbacks) {
   );
 
   // PHASE 1: PLANNING FILE STRUCTURE
-  const { object: plan } = await generateObject({
-    model,
-    schema: FilePlanSchema,
-    system: FILE_PLAN_SYSTEM,
-    prompt: `Plan for: ${prompt}`,
-    maxRetries: 2,
-  });
+  let plan;
+  try {
+    const { object } = await generateObject({
+      model,
+      schema: FilePlanSchema,
+      system: FILE_PLAN_SYSTEM,
+      prompt: `Plan for: ${prompt}`,
+      maxRetries: 2,
+    });
+    plan = object;
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      throw markRateLimit(
+        error,
+        "AI limit reached while planning the project.",
+      );
+    }
+    throw error;
+  }
 
   // ENSURE REQUIRED FILES EXIST
   if (!plan.files.find((f) => f.path === "/App.js")) {
@@ -129,159 +326,32 @@ export async function generateProject(prompt, callbacks) {
   );
 
   const files = {};
-  let pendingFiles = plan.files.map((f) => ({ ...f })); // List pendingFiles
 
-  const maxRetryRounds = 2;
+  const { failedFiles, limited, pendingFiles } = await runGenerationRounds({
+    pendingFiles: plan.files,
+    allFiles: plan.files,
+    prompt,
+    files,
+    callbacks,
+  });
 
-  // Generating files and retry
-  for (let round = 0; round <= maxRetryRounds; round++) {
-    if (pendingFiles.length === 0) break;
-
-    // Display when retrying
-    if (round > 0) {
-      console.log(
-        `[Assistant]: Retrying ${round}/${maxRetryRounds} for ${pendingFiles.length} failed files: ${pendingFiles.map((f) => f.path).join(", ")}`,
-      );
-    }
-
-    // GENERATING PENDING FILES
-    const results = await pMap(
+  // Hit the AI's rate limit partway through — stop here with whatever was
+  // written so far. The caller persists this as a "limit" state; nothing is
+  // placeholdered, so a resume just picks up the remaining files.
+  if (limited) {
+    return {
+      limited: true,
+      files,
       pendingFiles,
-      async (file) => {
-        try {
-          if (callbacks?.onFileStart) {
-            await callbacks.onFileStart(file.path);
-          }
-
-          const singleResult = await generateSingleFile(
-            file,
-            plan.files,
-            prompt,
-            files,
-          );
-
-          // Notify that file is finished
-          if (callbacks?.onFileComplete) {
-            await callbacks.onFileComplete(file.path, singleResult.code);
-          }
-
-          return {
-            success: true,
-            file,
-            result: singleResult,
-          };
-        } catch (error) {
-          return {
-            success: false,
-            file,
-            error,
-          };
-        }
-      },
-
-      {
-        concurrency: MAX_CONCURRENCY,
-      },
-    );
-
-    // PROCESSING THE RESULT OF GENERATION
-    const failedFiles = [];
-
-    for (const entry of results) {
-      if (entry.success) {
-        const { path, code } = entry.result;
-
-        files[path.startsWith("/") ? path : "/" + path] = code;
-      } else {
-        console.warn(
-          `[Assistant]: File ${entry.file.path} failed in round ${round}: ${
-            entry.error?.message || entry.error
-          }`,
-        );
-
-        // Add failed files to retry list
-        failedFiles.push(entry.file);
-      }
-    }
-
-    // Replace pendingFiles with failed files, for next round
-    pendingFiles = failedFiles;
-  }
-
-  // HANDLE FILES THAT FAILED AT ALL ROUNDS — placeholder every one of them,
-  // not just /App.js, so nothing silently vanishes from the project.
-  if (pendingFiles.length > 0) {
-    const failedPath = pendingFiles.map((f) => f.path).join(", ");
-
-    console.error(
-      `[Assistant]: Failed to generate ${pendingFiles.length} files after all retry rounds: ${failedPath}`,
-    );
-
-    for (const file of pendingFiles) {
-      const extension = file.path.split(".").pop()?.toLowerCase();
-
-      if (extension === "css") {
-        files[file.path] =
-          `/* ${file.description} — Generation failed, please retry */\n`;
-      } else {
-        files[file.path] =
-          "import React from 'react';\n\n" +
-          `// ⚠️ This file could not be generated. Please retry.\n` +
-          `// Purpose: ${file.description}\n\n` +
-          "export default function Placeholder() {\n" +
-          "  return (\n" +
-          "    <div className='p-8 text-center text-zinc-400'>\n" +
-          "      <p>⚠️ Component failed to generate. Please try again.</p>\n" +
-          "    </div>\n" +
-          "  );\n" +
-          "}\n";
-      }
-    }
+      plan,
+    };
   }
 
   // SAFETY NET: some imports still won't resolve even after fixImportPaths —
   // that happens when the model references a component it never actually
   // planned/generated (not just planned-but-misplaced). Left alone, this is
   // what crashes the Sandpack preview with "Could not find module in path".
-  // Stub those files in so the site loads with a visible gap instead of a
-  // hard crash.
-  const unresolvedImports = findUnresolvedImports(files);
-  if (unresolvedImports.length > 0) {
-    console.warn(
-      `[Assistant]: Stubbing ${unresolvedImports.length} unresolved import(s): ${unresolvedImports
-        .map((u) => `'${u.importTarget}' from ${u.fromFile}`)
-        .join(", ")}`,
-    );
-
-    for (const { resolvedPath, isCss } of unresolvedImports) {
-      const alreadyStubbed =
-        files[resolvedPath] ||
-        files[`${resolvedPath}.jsx`] ||
-        files[`${resolvedPath}.css`];
-      if (alreadyStubbed) continue; // two files importing the same missing module
-
-      if (isCss) {
-        files[`${resolvedPath}.css`] =
-          "/* Referenced by an import but never generated. */\n";
-      } else {
-        const rawName = resolvedPath.split("/").pop() || "Missing";
-        const name = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(rawName)
-          ? rawName
-          : "MissingComponent";
-
-        files[`${resolvedPath}.jsx`] =
-          "import React from 'react';\n\n" +
-          `// ⚠️ Referenced by an import but never generated.\n\n` +
-          `export default function ${name}() {\n` +
-          "  return (\n" +
-          "    <div className='p-8 text-center text-zinc-400'>\n" +
-          `      <p>⚠️ "${name}" was referenced but never generated. Try regenerating.</p>\n` +
-          "    </div>\n" +
-          "  );\n" +
-          "}\n";
-      }
-    }
-  }
+  stubUnresolvedImports(files);
 
   // FINAL VALIDATION
   // Checking if App.js exists
@@ -293,7 +363,46 @@ export async function generateProject(prompt, callbacks) {
   return {
     files,
     description: plan.projectDescription,
+    failedFiles,
   };
+}
+
+// Resume a generation that previously stopped on an AI limit: continues
+// writing only the files that are still missing, reusing the plan and the
+// files that already made it through. Goes through the exact same
+// rate-limit-aware round logic as the initial build.
+export async function generateRemainingFiles(
+  prompt,
+  plannedFiles,
+  alreadyGeneratedFiles,
+  pendingFiles,
+  callbacks,
+) {
+  console.log(
+    `[Assistant]: Resuming generation for ${pendingFiles.length} remaining file(s): ${pendingFiles.map((f) => f.path).join(", ")}`,
+  );
+
+  const files = { ...alreadyGeneratedFiles };
+
+  const {
+    failedFiles,
+    limited,
+    pendingFiles: stillPending,
+  } = await runGenerationRounds({
+    pendingFiles,
+    allFiles: plannedFiles,
+    prompt,
+    files,
+    callbacks,
+  });
+
+  if (limited) {
+    return { limited: true, files, pendingFiles: stillPending };
+  }
+
+  stubUnresolvedImports(files);
+
+  return { files, failedFiles };
 }
 
 // ==========================================================

@@ -22,6 +22,7 @@ export function ChatPanel({
   onInputChange,
   onSend,
   files,
+  disabled = false,
 }) {
   const logRef = useRef(null);
 
@@ -55,7 +56,7 @@ export function ChatPanel({
   }
 
   function handleSend() {
-    if (!inputValue.trim()) return;
+    if (disabled || !inputValue.trim()) return;
 
     onSend();
     onInputChange("");
@@ -108,7 +109,9 @@ export function ChatPanel({
           ))}
         </div>
         <div className="flex-none border-t border-gray-200 p-3">
-          <div className={chatInput}>
+          <div
+            className={`${chatInput} ${disabled ? "pointer-events-none opacity-55" : ""}`}
+          >
             <textarea
               ref={textareaRef}
               rows={1}
@@ -116,6 +119,7 @@ export function ChatPanel({
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              disabled={disabled}
               className="max-h-50 min-h-9 flex-1 resize-none overflow-y-auto scrollbar-none border-none bg-transparent text-[13.5px] leading-normal placeholder:text-(--gray-400) focus:outline-none items-center"
             />
             <Button
@@ -123,6 +127,7 @@ export function ChatPanel({
               size="icon"
               className="rounded-lg"
               onClick={handleSend}
+              disabled={disabled}
               aria-label="Send"
             >
               <ArrowUp size={14} strokeWidth={2} />

@@ -78,14 +78,37 @@ a {
   outline-offset: 2px;
 }
 
-@keyframes fade-in {
+/* Decorative activity blocks shown while the AI is working.
+   Not tied to real progress; keeps long waits feeling active. */
+@keyframes wave {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Progress bar sheen and planning-phase sweep animation. */
+@keyframes bar-sheen {
+  to {
+    transform: translateX(200%);
+  }
+}
+@keyframes bar-idle {
   from {
-    opacity: 0;
-    transform: translateY(4px);
+    transform: translateX(0%);
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: translateX(257%);
+  }
+}
+@keyframes skeleton-shimmer {
+  to {
+    background-position: -200% 0;
   }
 }
 

@@ -48,7 +48,7 @@ const projectSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "generating", "revising", "failed", "completed"],
+      enum: ["pending", "generating", "revising", "limit", "failed", "completed"],
       default: "pending",
     },
 
@@ -63,6 +63,13 @@ const projectSchema = new mongoose.Schema(
     },
 
     filesGenerated: {
+      type: [String],
+      default: [],
+    },
+
+    // Files that failed after all retries and fell back to placeholders.
+    // Used to show incomplete builds and allow per-file retries.
+    filesFailed: {
       type: [String],
       default: [],
     },
