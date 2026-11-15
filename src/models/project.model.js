@@ -89,6 +89,11 @@ const projectSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+
+    thumbnail: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
