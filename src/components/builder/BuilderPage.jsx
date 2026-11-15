@@ -8,6 +8,7 @@ import { BuilderTopBar } from "./BuilderTopBar";
 import { ChatPanel } from "./ChatPanel";
 import { GeneratingView } from "./GeneratingView";
 import { LimitReachedView } from "./LimitReachedView";
+import { GenerationErrorView } from "./GenerationErrorView";
 import { FileFailedView } from "./FileFailedView";
 import { PreviewView } from "./PreviewView";
 import { CodeView } from "./CodeView";
@@ -120,6 +121,17 @@ export function BuilderPage({ projectSlug }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generation.isLimited]);
 
+  // Generation failed outright (not just rate-limited) — previously there
+  // was no handling for this at all, so the UI stayed stuck on the
+  // "generating" spinner forever with no way to retry. Resume now also
+  // accepts a "failed" project server-side, so the same action works here.
+  useEffect(() => {
+    if (generation.error && !generation.isLimited && !generation.isComplete) {
+      view.showGenerationError();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generation.error]);
+
   const projectName = project?.name || fallbackName;
   const chromeUrl = `${PUBLIC_HOST}/${projectSlug}`; // Project URL shown in the sandbox chrome bar and publish modal
 
@@ -230,7 +242,9 @@ export function BuilderPage({ projectSlug }) {
           onInputChange={chat.setInputValue}
           onSend={() => chat.sendMessage(projectSlug, handleFilesUpdated)}
           files={files}
-          disabled={view.mainView === "limit"}
+          disabled={
+            view.mainView === "limit" || view.mainView === "generation-error"
+          }
         />
 
         {/* Main area for generation progress, preview, or code. */}
@@ -264,6 +278,16 @@ export function BuilderPage({ projectSlug }) {
             <LimitReachedView
               doneCount={generation.doneCount}
               total={generation.total}
+              isResuming={generation.isResuming}
+              onResume={handleResume}
+              onBackToProjects={handleBackToProjects}
+            />
+          )}
+
+          {/* Generation failed outright, before anything was produced. */}
+          {view.mainView === "generation-error" && (
+            <GenerationErrorView
+              error={generation.error}
               isResuming={generation.isResuming}
               onResume={handleResume}
               onBackToProjects={handleBackToProjects}

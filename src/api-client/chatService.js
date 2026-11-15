@@ -11,8 +11,12 @@ export async function sendChatMessage(slug, prompt) {
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.Error || "Failed to send message");
+    throw new Error(body.error || "Failed to send message");
   }
 
-  return response.json();
+  try {
+    return await response.json();
+  } catch {
+    throw new Error("Received an unexpected response from the server.");
+  }
 }

@@ -10,6 +10,23 @@ function nextId() {
   return `msg-${messageIdCounter}`;
 }
 
+// Backend errors are short, human-written sentences ("AI limit reached...",
+// "Prompt is required"). A raw JS/runtime failure (a thrown TypeError that
+// slipped past the API layer, a minified "x.json is not a function") is not
+// something a user should ever see. Treat messages that look like code as
+// unreadable and swap in a plain-language fallback instead.
+function toDisplayErrorMessage(err) {
+  const message = err?.message || "";
+  const looksTechnical =
+    !message ||
+    /is not a function|undefined is not|cannot read propert|unexpected token|\bnan\b/i.test(
+      message,
+    );
+  return looksTechnical
+    ? "Something went wrong and the request couldn't be completed. Please try again."
+    : message;
+}
+
 // Manage chat/messages
 
 export function useChat(initialMessages = []) {
@@ -73,11 +90,11 @@ export function useChat(initialMessages = []) {
       catch (err) {
         if (!mountedRef.current) return;
 
-        // Diesplay errro message 
+        // Display a readable error message — never raw JS/runtime text.
         appendMessage({
           id: nextId(),
           role: "ai",
-          text: `Something went wrong: ${err.message}`,
+          text: toDisplayErrorMessage(err),
         });
       } 
       finally {

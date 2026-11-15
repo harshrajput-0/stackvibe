@@ -336,8 +336,16 @@ export async function resumeGenerationBySlug(slug, userId) {
     throw new HttpError(404, "Project not found");
   }
 
-  if (project.status !== "limit") {
-    throw new HttpError(400, "This project isn't waiting on the AI limit.");
+  // "limit" = rate-limited partway through, resumes the remaining files.
+  // "failed" = the run threw outright (often the same underlying cause,
+  // just not always classified as a rate limit) — runBackgroundResume
+  // already restarts cleanly from scratch when there's no saved plan, so
+  // it's safe to retry from here too.
+  if (project.status !== "limit" && project.status !== "failed") {
+    throw new HttpError(
+      400,
+      "This project isn't waiting on the AI limit or a failed build.",
+    );
   }
 
   project.status = (project.filesPlanned || []).length > 0 ? "generating" : "pending";
@@ -443,6 +451,7 @@ function serializeProject(project) {
     error: project.error,
     createdAt: project.createdAt,
     published: project.published,
+    thumbnail: project.thumbnail,
   };
 };
 
