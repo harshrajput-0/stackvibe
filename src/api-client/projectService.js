@@ -76,6 +76,25 @@ export async function deleteProject(id) {
   }
 }
 
+// SAVE EDITED FILES — replaces the project's entire files map, so the
+// caller must send the full current file set (edited + untouched), not
+// just the files that changed.
+export async function updateProjectFiles(id, files) {
+  const response = await fetch(`/api/projects/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ files }),
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, "Failed to save changes");
+  }
+
+  return response.json();
+}
+
 // PUBLISH PROJECT
 export async function publishProject(id) {
   const response = await fetch(`/api/projects/${id}/publish`, {
