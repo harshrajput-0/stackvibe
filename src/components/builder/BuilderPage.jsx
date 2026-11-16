@@ -243,8 +243,11 @@ export function BuilderPage({ projectSlug }) {
           onSend={() => chat.sendMessage(projectSlug, handleFilesUpdated)}
           files={files}
           disabled={
-            view.mainView === "limit" || view.mainView === "generation-error"
+            view.mainView === "limit" ||
+            view.mainView === "generation-error" ||
+            chat.isSending
           }
+          isWaiting={chat.isSending}
         />
 
         {/* Main area for generation progress, preview, or code. */}
@@ -337,13 +340,52 @@ export function BuilderPage({ projectSlug }) {
   );
 }
 
+// Matches the backend's per-file log entries, e.g. `Created file "/App.js"`.
+const CREATED_FILE_RE = /^Created file "(.+)"$/;
+
 // Convert backend messages into the format expected by the chat UI.
+// Backend logs one "Created file" entry per file, which would otherwise
+// render as a separate "StackVibe" bubble for every single file. Collapse
+// consecutive runs of those into one bubble with a checklist (statusLines),
+// matching the look already used for revision results.
 function toChatMessages(messages = []) {
-  return messages.map((message, index) => ({
-    id: `${index}-${message.role}`,                                           // Unique ID for each message
-    role: message.role === "user" ? "user" : "ai",                            // convert backend role into user or AI
-    text: message.content,                                                    // Message content as displayed text
-  }));
+  const result = [];
+
+  messages.forEach((message, index) => {
+    const match = message.role !== "user" && CREATED_FILE_RE.exec(message.content);
+
+    if (match) {
+      const lastGroup = result[result.length - 1];
+
+      if (lastGroup?.isFileGroup) {
+        lastGroup.statusLines.push(match[1]);
+      } else {
+        result.push({
+          id: `${index}-files`,
+          role: "ai",
+          isFileGroup: true,
+          statusLines: [match[1]],
+        });
+      }
+      return;
+    }
+
+    result.push({
+      id: `${index}-${message.role}`,                                         // Unique ID for each message
+      role: message.role === "user" ? "user" : "ai",                          // convert backend role into user or AI
+      text: message.content,                                                  // Message content as displayed text
+    });
+  });
+
+  // Now that each group's final file count is known, give it a summary line.
+  result.forEach((message) => {
+    if (message.isFileGroup) {
+      const count = message.statusLines.length;
+      message.text = `Created ${count} file${count === 1 ? "" : "s"}`;
+    }
+  });
+
+  return result;
 }
 
 

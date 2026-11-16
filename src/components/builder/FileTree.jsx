@@ -25,7 +25,7 @@ export function FileTree({ files = {} }) {
             key={path}
           >
             <span
-              className={`h-2 w-2 flex-none rounded-sm ${DOT_COLORS[ext] ?? "bg--gray-300"}`}
+              className={`h-2 w-2 flex-none rounded-sm ${DOT_COLORS[ext] ?? "bg-gray-300"}`}
             />
             {path}
           </div>

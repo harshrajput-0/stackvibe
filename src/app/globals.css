@@ -127,6 +127,32 @@ a {
   }
 }
 
+/* Flow: all layers dip and rise in a staggered sequence, creating a
+   traveling color effect. Used for inline "AI is working" indicators. */
+@keyframes logo-flow {
+  0%,
+  100% {
+    opacity: var(--logo-min, 0.2);
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2.5px);
+  }
+}
+
+/* Staggered blinking dots for inline "working…" text. */
+@keyframes dot-blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;
