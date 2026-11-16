@@ -112,6 +112,19 @@ a {
   }
 }
 
+/* LOGO ANIMATION  */
+@keyframes logo-pulse {
+  0%,
+  100% {
+    opacity: var(--logo-opacity, 1);
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2.5px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;
