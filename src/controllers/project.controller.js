@@ -427,6 +427,7 @@ export async function listProjects(userId) {
       slug: 1,
       description: 1,
       thumbnail: 1,
+      published: 1,
       version: 1,
       createdAt: 1,
       updatedAt: 1,

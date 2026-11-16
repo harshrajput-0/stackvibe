@@ -22,13 +22,13 @@ export const ProjectCard = ({ project, onOpen, onEdit, onDelete }) => {
         <ProjectThumb src={project.thumbnail} />
         <div className="flex min-h-30 flex-1 flex-col bg-white px-3.75 py-3.25">
           <div
-            className="line-clamp-2 text-sm leading-[1.25rem] font-semibold"
+            className="line-clamp-2 text-sm leading-5 font-semibold"
             title={project.name}
           >
             {project.name}
           </div>
           {project.description && (
-            <p className="mt-0.75 line-clamp-3 text-xs leading-[1.125rem] text-(--gray-500)">
+            <p className="mt-0.75 line-clamp-3 text-xs leading-4.5 text-(--gray-500)">
               {project.description}
             </p>
           )}
