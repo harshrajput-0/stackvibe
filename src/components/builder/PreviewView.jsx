@@ -1,9 +1,17 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import { SiteSandbox } from "@/components/shared/SiteSandbox";
+import { Button } from "@/components/ui";
 
 
-export function PreviewView({ chromeUrl, siteName, files = {} }) {
+export function PreviewView({
+  chromeUrl,
+  siteSlug,
+  siteName,
+  files = {},
+  isPublished = false,
+}) {
   // Check App.js file
   const hasApp = Boolean(files["/App.js"]);
 
@@ -25,6 +33,27 @@ export function PreviewView({ chromeUrl, siteName, files = {} }) {
           <div className="flex h-5.5 flex-1 items-center rounded-[5px] bg-gray-100 px-2.5 font-mono text-[11px] text-gray-500">
             {chromeUrl}
           </div>
+
+          {/* Only a published project has anything live at this URL —
+              same rule as the dashboard card's link button. */}
+          {isPublished && (
+            // chromeUrl is a display-only string (host + slug, no
+            // protocol — see PUBLIC_HOST) built just to *look like* an
+            // address bar, so it isn't a usable href. The published site
+            // is served by this same app at the root /[slug] route, so a
+            // plain root-relative link is the correct (and simplest) way
+            // to actually get there, same as the dashboard card's link.
+            <Button
+              href={`/${siteSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="iconGhost"
+              size="iconSm"
+              aria-label="Visit published site"
+            >
+              <ExternalLink size={13} />
+            </Button>
+          )}
         </div>
 
         {/* Show the live preview if files are available */}

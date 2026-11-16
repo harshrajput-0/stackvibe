@@ -311,8 +311,10 @@ export function BuilderPage({ projectSlug }) {
           {view.mainView === "preview" && (
             <PreviewView
               chromeUrl={chromeUrl}
+              siteSlug={projectSlug}
               siteName={projectName}
               files={files}
+              isPublished={Boolean(project?.published)}
             />
           )}
 
