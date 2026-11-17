@@ -56,6 +56,12 @@ body {
   color: var(--white);
 }
 
+/* CODE EDITOR SELECTION  */
+.code-editor-dark ::selection {
+  background: rgba(99, 149, 255, 0.4);
+  color: var(--white);
+}
+
 button,
 input,
 textarea {
@@ -73,9 +79,11 @@ a {
   color: inherit;
 }
 
-:focus-visible {
-  outline: 2px solid var(--black);
-  outline-offset: 2px;
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--black);
+    outline-offset: 2px;
+  }
 }
 
 /* Decorative activity blocks shown while the AI is working.
@@ -109,6 +117,45 @@ a {
 @keyframes skeleton-shimmer {
   to {
     background-position: -200% 0;
+  }
+}
+
+/* LOGO ANIMATION  */
+@keyframes logo-pulse {
+  0%,
+  100% {
+    opacity: var(--logo-opacity, 1);
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2.5px);
+  }
+}
+
+/* Flow: all layers dip and rise in a staggered sequence, creating a
+   traveling color effect. Used for inline "AI is working" indicators. */
+@keyframes logo-flow {
+  0%,
+  100% {
+    opacity: var(--logo-min, 0.2);
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2.5px);
+  }
+}
+
+/* Staggered blinking dots for inline "working…" text. */
+@keyframes dot-blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
   }
 }
 

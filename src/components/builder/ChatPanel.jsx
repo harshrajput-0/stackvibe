@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { ArrowUp } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
+import { ChatWorkingIndicator } from "./ChatWorkingIndicator";
 import { FileTree } from "./FileTree";
 import { Button } from "@/components/ui/Button";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
@@ -23,6 +24,7 @@ export function ChatPanel({
   onSend,
   files,
   disabled = false,
+  isWaiting = false,
 }) {
   const logRef = useRef(null);
 
@@ -35,7 +37,7 @@ export function ChatPanel({
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [messages]);
+  }, [messages, isWaiting]);
 
   const textareaRef = useRef(null);
 
@@ -107,6 +109,7 @@ export function ChatPanel({
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
           ))}
+          {isWaiting && <ChatWorkingIndicator />}
         </div>
         <div className="flex-none border-t border-gray-200 p-3">
           <div

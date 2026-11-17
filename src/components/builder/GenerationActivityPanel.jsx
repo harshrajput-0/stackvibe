@@ -51,7 +51,7 @@ export function GenerationActivityPanel({ phase }) {
   }, [reducedMotion]);
 
   return (
-    <div className="mt-5 rounded-lg border border-gray-200 bg-gray-100 p-3.5 pb-3">
+    <div className="mt-5 rounded-lg border border-gray-200 bg-gray-100 p-3.5">
       <div className="grid grid-cols-[repeat(20,1fr)] gap-1" aria-hidden="true">
         {Array.from({ length: 20 }).map((_, i) => (
           <span
@@ -78,7 +78,7 @@ export function GenerationActivityPanel({ phase }) {
       </div>
 
       <p
-        className={`mt-1 h-4 text-xs text-gray-500 transition-opacity duration-500 ${
+        className={`mt-1.5 min-h-8 text-xs leading-[1.4] text-gray-500 transition-opacity duration-500 ${
           showSlowNote ? "opacity-100" : "opacity-0"
         }`}
       >

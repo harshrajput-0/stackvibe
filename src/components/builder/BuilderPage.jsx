@@ -13,12 +13,14 @@ import { FileFailedView } from "./FileFailedView";
 import { PreviewView } from "./PreviewView";
 import { CodeView } from "./CodeView";
 import { PublishModal } from "./PublishModal";
+import { SaveChangesModal } from "./SaveChangesModal";
 
 // Custom hooks
 import { useGeneration } from "@/hooks/useGeneration";
 import { useChat } from "@/hooks/useChat";
 import { useBuilderView } from "@/hooks/useBuilderView";
 import { usePublishModal } from "@/hooks/usePublishModal";
+import { useFileEditor } from "@/hooks/useFileEditor";
 
 // API for loading function from backend
 import { getProjectBySlug, publishProject } from "@/api-client/projectService";
@@ -37,7 +39,7 @@ export function BuilderPage({ projectSlug }) {
   const publishModal = usePublishModal();                                                         // Manage publish modal's open and close state
 
   const [project, setProject] = useState(null);
-  const [files, setFiles] = useState({});
+  const fileEditor = useFileEditor();                                                              // Manage Code tab edits, dirty tracking, and saving to the backend
   const [loadError, setLoadError] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
@@ -50,7 +52,7 @@ export function BuilderPage({ projectSlug }) {
   const applyProject = useCallback(
     (data) => {
       setProject(data);
-      setFiles(data.files || {});
+      fileEditor.setFromServer(data.files || {});
       chat.resetMessages(toChatMessages(data.messages));
     },
     // chat identity is stable (useCallback/useState setters), safe to omit
@@ -135,9 +137,10 @@ export function BuilderPage({ projectSlug }) {
   const projectName = project?.name || fallbackName;
   const chromeUrl = `${PUBLIC_HOST}/${projectSlug}`; // Project URL shown in the sandbox chrome bar and publish modal
 
-  // Update files after with one returned form chat
+  // Update files after with one returned form chat — the backend already
+  // has these, so they aren't "unsaved" the way a manual code edit is.
   function handleFilesUpdated(updatedFiles) {
-    if (updatedFiles) setFiles(updatedFiles);
+    if (updatedFiles) fileEditor.setFromServer(updatedFiles);
   }
 
   // Mark the project published (or re-publish after edits).
@@ -229,7 +232,7 @@ export function BuilderPage({ projectSlug }) {
         onShowCode={view.showCode}
         onShowPreview={view.showPreview}
         onPublish={publishModal.open}
-        files={files}
+        files={fileEditor.files}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -241,10 +244,13 @@ export function BuilderPage({ projectSlug }) {
           inputValue={chat.inputValue}
           onInputChange={chat.setInputValue}
           onSend={() => chat.sendMessage(projectSlug, handleFilesUpdated)}
-          files={files}
+          files={fileEditor.files}
           disabled={
-            view.mainView === "limit" || view.mainView === "generation-error"
+            view.mainView === "limit" ||
+            view.mainView === "generation-error" ||
+            chat.isSending
           }
+          isWaiting={chat.isSending}
         />
 
         {/* Main area for generation progress, preview, or code. */}
@@ -307,17 +313,29 @@ export function BuilderPage({ projectSlug }) {
             />
           )}
 
-          {/* Show the live website preview. */}
+          {/* Show the live website preview — reads fileEditor.files, so
+              unsaved edits made in the Code tab show up here too. */}
           {view.mainView === "preview" && (
             <PreviewView
               chromeUrl={chromeUrl}
+              siteSlug={projectSlug}
               siteName={projectName}
-              files={files}
+              files={fileEditor.files}
+              isPublished={Boolean(project?.published)}
             />
           )}
 
-          {/* Show the generated source code. */}
-          {view.mainView === "code" && <CodeView files={files} />}
+          {/* Show the generated source code, editable. */}
+          {view.mainView === "code" && (
+            <CodeView
+              files={fileEditor.files}
+              dirtyPaths={fileEditor.dirtyPaths}
+              onChange={fileEditor.editFile}
+              onDiscard={fileEditor.discardFile}
+              onSaveClick={fileEditor.openSaveModal}
+              isSaving={fileEditor.isSaving}
+            />
+          )}
         </div>
       </div>
 
@@ -331,17 +349,71 @@ export function BuilderPage({ projectSlug }) {
         publishError={publishError}
         onPublish={handlePublish}
       />
+
+      {/* Modal confirming a save of edited files back to the backend. */}
+      <SaveChangesModal
+        isOpen={fileEditor.isSaveModalOpen}
+        dirtyCount={fileEditor.dirtyPaths.size}
+        isSaving={fileEditor.isSaving}
+        saveError={fileEditor.saveError}
+        onConfirm={() => project?._id && fileEditor.save(project._id)}
+        onClose={fileEditor.closeSaveModal}
+      />
     </div>
   );
 }
 
+// Matches the backend's per-file log entries, e.g. `Created file "/App.js"`.
+const CREATED_FILE_RE = /^Created file "(.+)"$/;
+
 // Convert backend messages into the format expected by the chat UI.
+// Backend logs one "Created file" entry per file, which would otherwise
+// render as a separate "StackVibe" bubble for every single file. Collapse
+// ALL of those into a single bubble with a checklist (statusLines), placed
+// at the position of the LAST "Created file" entry — not just consecutive
+// runs — so a backend race that splits one run into two (or more) still
+// shows as exactly one "Created N files" bubble, in the right spot.
 function toChatMessages(messages = []) {
-  return messages.map((message, index) => ({
-    id: `${index}-${message.role}`,                                           // Unique ID for each message
-    role: message.role === "user" ? "user" : "ai",                            // convert backend role into user or AI
-    text: message.content,                                                    // Message content as displayed text
-  }));
+  const result = [];
+  let fileGroup = null; // the single collapsed group, created lazily
+
+  messages.forEach((message, index) => {
+    const match = message.role !== "user" && CREATED_FILE_RE.exec(message.content);
+
+    if (match) {
+      if (!fileGroup) {
+        fileGroup = {
+          id: `${index}-files`,
+          role: "ai",
+          isFileGroup: true,
+          statusLines: [],
+        };
+        result.push(fileGroup);
+      } else {
+        // Move the existing group to come after whatever's been added
+        // since, so it always renders at the position of the latest
+        // "Created file" entry rather than the first.
+        result.splice(result.indexOf(fileGroup), 1);
+        result.push(fileGroup);
+      }
+      fileGroup.statusLines.push(match[1]);
+      return;
+    }
+
+    result.push({
+      id: `${index}-${message.role}`,                                         // Unique ID for each message
+      role: message.role === "user" ? "user" : "ai",                          // convert backend role into user or AI
+      text: message.content,                                                  // Message content as displayed text
+    });
+  });
+
+  // Now that the group's final file count is known, give it a summary line.
+  if (fileGroup) {
+    const count = fileGroup.statusLines.length;
+    fileGroup.text = `Created ${count} file${count === 1 ? "" : "s"}`;
+  }
+
+  return result;
 }
 
 
