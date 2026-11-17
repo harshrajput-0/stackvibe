@@ -661,9 +661,26 @@ async function reviseAndSave(project, prompt) {
     // Build compact manifest (path + hash + size) instead of sending all code
     const manifest = buildManifest(project.files);
 
+    // Only send full content for files the prompt actually mentions by name
+    // (or, if nothing matches, a small fallback set) — sending every file's
+    // full content on every revision bloats the request and makes the AI
+    // gateway far more likely to time out mid-response, which is what
+    // produces the "Invalid JSON response" error (a truncated/non-JSON
+    // HTTP body, not a bad AI answer).
+    const allPaths = Object.keys(project.files || {});
+    const mentioned = allPaths.filter((path) => {
+      const base = path.split("/").pop();
+      return prompt.includes(path) || (base && prompt.includes(base));
+    });
+    const MAX_RELEVANT_FILES = 8;
+    const pathsToSend = (mentioned.length > 0 ? mentioned : allPaths).slice(
+      0,
+      MAX_RELEVANT_FILES,
+    );
+
     const relevantFiles = {};
-    for (const [path, entry] of Object.entries(project.files || {})) {
-      relevantFiles[path] = entry.content;
+    for (const path of pathsToSend) {
+      relevantFiles[path] = project.files[path].content;
     }
 
     // Recent messages for context

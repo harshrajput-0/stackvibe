@@ -1,5 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateObject } from "ai";
+import { generateObject, APICallError } from "ai";
 import pMap from "p-map";
 import {
   FileCodeSchema,
@@ -48,6 +48,67 @@ function markRateLimit(error, fallbackMessage) {
   tagged.isRateLimit = true;
   if (!tagged.message) tagged.message = fallbackMessage;
   return tagged;
+}
+
+// "Invalid JSON response" is NOT the model returning bad JSON — it's thrown
+// by the AI SDK's HTTP layer when the API call itself didn't come back as
+// JSON at all (an upstream gateway timeout/502 page, a truncated stream, an
+// invalid model id, etc). Treat it as a transient transport failure: log
+// the real diagnostics once (status code + body are usually hidden) and
+// retry a couple of times with backoff instead of failing the revision
+// outright on the first hiccup.
+function isTransportJsonError(error) {
+  if (APICallError.isInstance?.(error)) {
+    return (
+      error.message === "Invalid JSON response" ||
+      /invalid json response/i.test(error.message || "")
+    );
+  }
+  return /invalid json response/i.test(String(error?.message || ""));
+}
+
+async function generateObjectWithRetry(options, { retries = 2, label = "generateObject" } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await generateObject(options);
+    } catch (error) {
+      lastError = error;
+
+      if (isTransportJsonError(error)) {
+        console.error(
+          `[${label}] Non-JSON response from the AI gateway (attempt ${attempt + 1}/${retries + 1}).`,
+          {
+            statusCode: error.statusCode,
+            url: error.url,
+            // responseBody is often the giveaway: an HTML error page from
+            // the gateway, an empty body, or a truncated chunk.
+            responseBody:
+              typeof error.responseBody === "string"
+                ? error.responseBody.slice(0, 500)
+                : error.responseBody,
+          },
+        );
+
+        if (attempt < retries) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+
+        // Surface a message that actually points at the cause instead of
+        // the opaque "Invalid JSON response" that bubbles to the UI.
+        const tagged = new Error(
+          "The AI provider returned an invalid (non-JSON) response — this is usually a gateway timeout, an invalid OPENROUTER_MODEL, or the prompt being too large. Check OPENROUTER_MODEL/OPENROUTER_KEY and try a smaller revision.",
+        );
+        tagged.cause = error;
+        throw tagged;
+      }
+
+      if (isRateLimitError(error)) throw error; // let the caller's rate-limit handling run
+      throw error;
+    }
+  }
+  throw lastError;
 }
 
 export async function generateSingleFile(
@@ -455,13 +516,26 @@ export async function reviseProject(
   console.log(`[Assistant]: Revising the project...`);
 
   // ASK AI FOR STRUCTURED REVISION OPERATIONS
-  const { object: rawParsed } = await generateObject({
-    model,
-    schema: RevisionResultSchema,
-    system: REVISE_SYSTEM,
-    prompt: contextParts.join("\n"),
-    maxRetries: 2,
-  });
+  const { object: rawParsed } = await generateObjectWithRetry(
+    {
+      model,
+      schema: RevisionResultSchema,
+      system: REVISE_SYSTEM,
+      prompt: contextParts.join("\n"),
+      maxRetries: 2,
+      // Revisions return full file contents for "create" ops and can run
+      // long; an unset limit lets the provider default (sometimes too low)
+      // cut the JSON off mid-object, which also looks like a parse failure.
+      maxOutputTokens: 8000,
+      // If the model wraps the JSON in markdown fences or adds trailing
+      // prose, strip it instead of failing the whole revision.
+      repairText: async ({ text }) => {
+        const match = text.match(/\{[\s\S]*\}/);
+        return match ? match[0] : null;
+      },
+    },
+    { label: "reviseProject" },
+  );
 
   // Check AI returned an operations array
   if (rawParsed && Array.isArray(rawParsed.operations)) {
