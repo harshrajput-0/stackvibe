@@ -56,6 +56,12 @@ body {
   color: var(--white);
 }
 
+/* CODE EDITOR SELECTION  */
+.code-editor-dark ::selection {
+  background: rgba(99, 149, 255, 0.4);
+  color: var(--white);
+}
+
 button,
 input,
 textarea {

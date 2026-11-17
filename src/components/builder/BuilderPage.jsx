@@ -369,27 +369,34 @@ const CREATED_FILE_RE = /^Created file "(.+)"$/;
 // Convert backend messages into the format expected by the chat UI.
 // Backend logs one "Created file" entry per file, which would otherwise
 // render as a separate "StackVibe" bubble for every single file. Collapse
-// consecutive runs of those into one bubble with a checklist (statusLines),
-// matching the look already used for revision results.
+// ALL of those into a single bubble with a checklist (statusLines), placed
+// at the position of the LAST "Created file" entry — not just consecutive
+// runs — so a backend race that splits one run into two (or more) still
+// shows as exactly one "Created N files" bubble, in the right spot.
 function toChatMessages(messages = []) {
   const result = [];
+  let fileGroup = null; // the single collapsed group, created lazily
 
   messages.forEach((message, index) => {
     const match = message.role !== "user" && CREATED_FILE_RE.exec(message.content);
 
     if (match) {
-      const lastGroup = result[result.length - 1];
-
-      if (lastGroup?.isFileGroup) {
-        lastGroup.statusLines.push(match[1]);
-      } else {
-        result.push({
+      if (!fileGroup) {
+        fileGroup = {
           id: `${index}-files`,
           role: "ai",
           isFileGroup: true,
-          statusLines: [match[1]],
-        });
+          statusLines: [],
+        };
+        result.push(fileGroup);
+      } else {
+        // Move the existing group to come after whatever's been added
+        // since, so it always renders at the position of the latest
+        // "Created file" entry rather than the first.
+        result.splice(result.indexOf(fileGroup), 1);
+        result.push(fileGroup);
       }
+      fileGroup.statusLines.push(match[1]);
       return;
     }
 
@@ -400,13 +407,11 @@ function toChatMessages(messages = []) {
     });
   });
 
-  // Now that each group's final file count is known, give it a summary line.
-  result.forEach((message) => {
-    if (message.isFileGroup) {
-      const count = message.statusLines.length;
-      message.text = `Created ${count} file${count === 1 ? "" : "s"}`;
-    }
-  });
+  // Now that the group's final file count is known, give it a summary line.
+  if (fileGroup) {
+    const count = fileGroup.statusLines.length;
+    fileGroup.text = `Created ${count} file${count === 1 ? "" : "s"}`;
+  }
 
   return result;
 }

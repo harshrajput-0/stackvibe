@@ -175,21 +175,48 @@ function makeGenerationCallbacks(projectId) {
     onFileComplete: async (path, code) => {
       console.log(`[Assistant] Finished file ${path} for project ${projectId}`);
 
-      const project = await Project.findById(projectId);
-
-      if (project) {
-        project.files = project.files || {};
-        project.files[path] = { content: code, hash: hashContent(code) };
-        project.filesGenerated = [...(project.filesGenerated || []), path];
-        project.messages.push({
-          role: "assistant",
-          content: `Created file "${path}"`,
-          timestamp: new Date(),
-        });
-        project.currentFile = null;
-        project.markModified("files");
-        await project.save();
-      }
+      // Files generate concurrently (MAX_CONCURRENCY), so several
+      // onFileComplete calls can be in flight at once. A read-mutate-save
+      // here would race: two calls reading the same snapshot and saving
+      // back would make the later save silently clobber the earlier one's
+      // appended message, which splits what should be one contiguous run
+      // of "Created file" messages into two — rendering as two separate
+      // "Created N files" bubbles. Use one atomic update per file instead,
+      // so concurrent completions can never overwrite each other.
+      //
+      // Note: file paths contain dots (e.g. "/components/Footer.js"), so a
+      // classic `$set: {[`files.${path}`]: ...}` would be misread by Mongo
+      // as nested fields split on every ".". $setField takes `field` as a
+      // literal key instead, which is what we need here (requires Mongo 5+).
+      await Project.findByIdAndUpdate(projectId, [
+        {
+          $set: {
+            files: {
+              $setField: {
+                field: path,
+                input: { $ifNull: ["$files", {}] },
+                value: { content: code, hash: hashContent(code) },
+              },
+            },
+            filesGenerated: {
+              $concatArrays: [{ $ifNull: ["$filesGenerated", []] }, [path]],
+            },
+            messages: {
+              $concatArrays: [
+                "$messages",
+                [
+                  {
+                    role: "assistant",
+                    content: `Created file "${path}"`,
+                    timestamp: new Date(),
+                  },
+                ],
+              ],
+            },
+            currentFile: null,
+          },
+        },
+      ]);
     }
   };
 }

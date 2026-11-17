@@ -43,10 +43,10 @@ export function CodeView({
       <div className="w-47.5 flex-none overflow-y-auto rounded-md border border-gray-200 bg-white p-2.5">
         {paths.map((path) => (
           <button
-            className={`flex w-full items-center gap-1.75 rounded-[5px] px-2 py-1.5 text-left font-mono text-xs ${
+            className={`flex w-full items-center gap-1.75 rounded-[5px] border-l-2 px-2 py-1.5 text-left font-mono text-xs ${
               path === selected
-                ? "bg-gray-100 font-medium text-black"
-                : "text-gray-700"
+                ? "border-l-black bg-gray-900 font-medium text-white"
+                : "border-l-transparent text-gray-700 hover:bg-gray-100"
             }`}
             key={path}
             onClick={() => setSelected(path)}
@@ -91,7 +91,7 @@ export function CodeView({
         {/* Editor: plain textarea (no syntax highlighting) with its own
             line-number gutter, over the same dark background the old
             read-only view used. */}
-        <div className="flex min-h-0 flex-1 overflow-auto bg-gray-900">
+        <div className="code-editor-dark flex min-h-0 flex-1 overflow-auto bg-gray-900">
           <div
             aria-hidden="true"
             className="flex-none select-none whitespace-pre px-3.5 py-5 text-right font-mono text-[12.5px] leading-[1.7] text-gray-600"
