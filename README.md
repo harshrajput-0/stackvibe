@@ -12,6 +12,7 @@ StackVibe is an AI-powered Web Application Builder that enables users to quickly
 - **Export & Download:** Download completed project builds directly as ZIP files.
 - **Authentication Support:** Built-in sign-in and sign-up flows with social auth/SSO callback support.
 - **Responsive Workspace UI:** Drag-and-drop resizable panels for chat, code view, and live app preview.
+- **Branded Placeholders:** Projects without a thumbnail show the StackVibe mark on a black ground instead of a generic blank card.
 
 ---
 
@@ -45,7 +46,7 @@ stackvibe/
 │   │   ├── generation/     # AI prompt engines, schema validators, diff calculators
 │   │   └── utils/          # Formatting, ZIP downloads, slug utilities
 │   └── models/             # Mongoose database models (User, Project, Message, PlannedFiles)
-├── .env.example            # Environment variables template
+├── env.example             # Environment variables template
 ├── next.config.mjs         # Next.js configuration
 ├── package.json            # Node dependencies and scripts
 └── postcss.config.mjs      # Tailwind/PostCSS configuration
@@ -68,7 +69,7 @@ Ensure you have the following installed on your local machine:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/harshrajput-0/stackvibe.git
+   git clone https://github.com/harshrajput-0/stackvibe-development.git
    cd stackvibe-development
    ```
 
@@ -78,7 +79,7 @@ Ensure you have the following installed on your local machine:
    ```
 
 3. **Configure Environment Variables:**
-   Copy the `.env.example` file to `.env.local` and fill in the necessary keys:
+   Copy the `env.example` file to `.env.local` and fill in the necessary keys:
    ```bash
    cp env.example .env.local
    ```
