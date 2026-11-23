@@ -57,13 +57,14 @@ export function Logo({
       <path
         d="M45 26 L86 46 L45 66 L4 46 Z"
         fill={fill}
-        opacity={isFlow ? undefined : "0.55"}
-        style={layerStyle(0.55, "0.2s", "0.3s")}
+        opacity={isFlow ? undefined : "0.25"}
+        style={layerStyle(0.25, "0.2s", "0.3s")}
       />
       <path
         d="M45 48 L86 68 L45 88 L4 68 Z"
         fill={fill}
-        style={layerStyle(0.75, "0.4s", "0.6s")}
+        opacity={isFlow ? undefined : "0.25"}
+        style={layerStyle(0.25, "0.4s", "0.6s")}
       />
       <path
         d="M18 68 Q27 58 36 68 T54 68 T72 68"

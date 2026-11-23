@@ -90,6 +90,18 @@ const projectSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // The slug actually used in the live public URL (stackvibe.vercel.app/<publicSlug>).
+    // Usually the same as `slug`, but if another user already published under
+    // that name, a short per-owner suffix is appended here instead — `slug`
+    // itself (and the private /builder/<slug> URL) is never touched.
+    // Set the first time a project is published; stays stable after that.
+    publicSlug: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
+    },
+
     thumbnail: {
       type: String,
       default: null,
