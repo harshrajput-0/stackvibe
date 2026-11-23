@@ -195,35 +195,44 @@ function makeGenerationCallbacks(projectId) {
       // classic `$set: {[`files.${path}`]: ...}` would be misread by Mongo
       // as nested fields split on every ".". $setField takes `field` as a
       // literal key instead, which is what we need here (requires Mongo 5+).
-      await Project.findByIdAndUpdate(projectId, [
-        {
-          $set: {
-            files: {
-              $setField: {
-                field: path,
-                input: { $ifNull: ["$files", {}] },
-                value: { content: code, hash: hashContent(code) },
+      // Mongoose 9 requires opting in to pipeline-style updates (an array
+      // as the update argument) via `updatePipeline: true` — otherwise it
+      // throws "Cannot pass an array to query updates unless the
+      // `updatePipeline` option is set." See:
+      // https://mongoosejs.com/docs/migrating_to_9.html#update-pipelines-disallowed-by-default
+      await Project.findByIdAndUpdate(
+        projectId,
+        [
+          {
+            $set: {
+              files: {
+                $setField: {
+                  field: path,
+                  input: { $ifNull: ["$files", {}] },
+                  value: { content: code, hash: hashContent(code) },
+                },
               },
-            },
-            filesGenerated: {
-              $concatArrays: [{ $ifNull: ["$filesGenerated", []] }, [path]],
-            },
-            messages: {
-              $concatArrays: [
-                "$messages",
-                [
-                  {
-                    role: "assistant",
-                    content: `Created file "${path}"`,
-                    timestamp: new Date(),
-                  },
+              filesGenerated: {
+                $concatArrays: [{ $ifNull: ["$filesGenerated", []] }, [path]],
+              },
+              messages: {
+                $concatArrays: [
+                  "$messages",
+                  [
+                    {
+                      role: "assistant",
+                      content: `Created file "${path}"`,
+                      timestamp: new Date(),
+                    },
+                  ],
                 ],
-              ],
+              },
+              currentFile: null,
             },
-            currentFile: null,
           },
-        },
-      ]);
+        ],
+        { updatePipeline: true },
+      );
     }
   };
 }
