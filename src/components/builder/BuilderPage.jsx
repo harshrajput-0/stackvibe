@@ -135,7 +135,11 @@ export function BuilderPage({ projectSlug }) {
   }, [generation.error]);
 
   const projectName = project?.name || fallbackName;
-  const chromeUrl = `${PUBLIC_HOST}/${projectSlug}`; // Project URL shown in the sandbox chrome bar and publish modal
+  // Once published, the live site may sit at a slightly different slug than
+  // the private one (e.g. "coffee-shop-4f9a2c") if another user already
+  // published under the same name — show that real address once we have it,
+  // and fall back to the private slug as a preview before the first publish.
+  const chromeUrl = `${PUBLIC_HOST}/${project?.publicSlug || projectSlug}`;
 
   // Update files after with one returned form chat — the backend already
   // has these, so they aren't "unsaved" the way a manual code edit is.

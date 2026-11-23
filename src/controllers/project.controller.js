@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import crypto from "crypto";
 import Project from "@/models/project.model.js";
 import { slugify } from "@/lib/utils/slugify.js";
 import { isReservedSlug } from "@/lib/reservedSlugs.js";
@@ -38,31 +39,37 @@ async function isSlugTaken(owner, slug, excludeId) {
   return Boolean(await Project.exists(filter));
 }
 
-// Check whether this slug is already used by any published site.
-// Drafts only require per-owner uniqueness, but published slugs are public
-// and must be globally unique. `excludeId` lets the current project ignore itself.
-async function isPublishedSlugTaken(slug, excludeId) {
-  const filter = { slug, published: true };
+// Check whether this PUBLIC slug is already used by any published site.
+// `excludeId` lets the current project ignore itself (e.g. on republish).
+async function isPublicSlugTaken(publicSlug, excludeId) {
+  const filter = { publicSlug, published: true };
   if (excludeId) filter._id = { $ne: excludeId };
   return Boolean(await Project.exists(filter));
 }
 
-// Throws an error if `slug` can't be used as a public URL.
-// Used when publishing a site and when changing a project's URL.
-async function assertSlugIsAvailableForPublic(slug, projectId) {
-  if (isReservedSlug(slug)) {
-    throw new HttpError(
-      400,
-      "That URL is reserved. Pick a different one in the project details.",
-    );
-  }
+// Short, stable, per-owner suffix. Two different users can both have a
+// project named "Coffee Shop" (and both keep that as their private slug) —
+// this only kicks in to disambiguate the public URL, so it doesn't need to
+// be secret, just short and consistent for the same owner.
+function ownerSuffix(owner) {
+  return crypto.createHash("sha1").update(String(owner)).digest("hex").slice(0, 6);
+}
 
-  if (await isPublishedSlugTaken(slug, projectId)) {
-    throw new HttpError(
-      409,
-      "That URL is already used by another published site. Pick a different one in the project details.",
-    );
+// Build a public slug that's guaranteed unique across ALL users' published
+// sites, starting from the project's own (per-owner-unique) slug:
+//   "coffee-shop"            — free, use as-is
+//   "coffee-shop-4f9a2c"     — taken, so disambiguate with the owner's suffix
+//   "coffee-shop-4f9a2c-2"   — even that's taken (rare), number it
+// Republishing the same project keeps whatever publicSlug it already has.
+async function createUniquePublicSlug(baseSlug, owner, excludeId) {
+  if (!(await isPublicSlugTaken(baseSlug, excludeId))) return baseSlug;
+
+  const withOwner = `${baseSlug}-${ownerSuffix(owner)}`;
+  let slug = withOwner;
+  for (let attempt = 2; await isPublicSlugTaken(slug, excludeId); attempt++) {
+    slug = `${withOwner}-${attempt}`;
   }
+  return slug;
 }
 
 // Slug for a new project: "coffee-shop", then "coffee-shop-2", "-3", …
@@ -467,6 +474,7 @@ function serializeProject(project) {
     _id: project._id,
     name: project.name,
     slug: project.slug,
+    publicSlug: project.publicSlug,
     description: project.description,
     files: filesToObject(project.files),
     messages: project.messages,
@@ -576,21 +584,31 @@ export async function publishProject(id, userId) {
 
   // Step 1: find the user's own project (we only need its slug here).
   const existing = await Project.findOne({ _id: id, owner: userId }).select(
-    "slug",
+    "slug publicSlug",
   );
 
   if (!existing) {
     throw new HttpError(404, "Project not found");
   }
 
-  // Step 2: make sure the slug is allowed to be public
-  // (not a reserved word, not used by someone else's published site).
-  await assertSlugIsAvailableForPublic(existing.slug, id);
+  if (isReservedSlug(existing.slug)) {
+    throw new HttpError(
+      400,
+      "That URL is reserved. Pick a different one in the project details.",
+    );
+  }
+
+  // Step 2: resolve the public URL. If this project already has one (e.g.
+  // a republish), keep it — otherwise derive one from the slug, automatically
+  // disambiguating it from anyone else's project with the same name.
+  const publicSlug =
+    existing.publicSlug ||
+    (await createUniquePublicSlug(existing.slug, userId, id));
 
   // Step 3: flip the switch. From now on the public page can find it.
   const project = await Project.findOneAndUpdate(
     { _id: id, owner: userId },
-    { published: true },
+    { published: true, publicSlug },
     { returnDocument: "after" },
   );
 
@@ -602,6 +620,7 @@ export async function publishProject(id, userId) {
     _id: project._id,
     name: project.name,
     slug: project.slug,
+    publicSlug: project.publicSlug,
     description: project.description,
     version: project.version,
     published: project.published,
@@ -631,7 +650,14 @@ export async function getPublicProject(id) {
 
 
 export async function getPublicProjectBySlug(slug) {
-  const project = await Project.findOne({ slug, published: true });
+  // Published sites are looked up by their `publicSlug`. The `slug` branch
+  // here is only a fallback for projects published before `publicSlug`
+  // existed (where it was never set and the private slug doubled as the
+  // public one) — keeps their old links working.
+  const project = await Project.findOne({
+    published: true,
+    $or: [{ publicSlug: slug }, { publicSlug: null, slug }],
+  });
 
   if (!project) {
     throw new HttpError(404, "Site not found");
@@ -833,9 +859,11 @@ export async function updateProjectDetails(id, userId, details) {
     throw new HttpError(409, "That URL is already used by another project");
   }
 
-
-  if (updates.slug) {
-    await assertSlugIsAvailableForPublic(updates.slug, id);
+  if (updates.slug && isReservedSlug(updates.slug)) {
+    throw new HttpError(
+      400,
+      "That URL is reserved. Pick a different one in the project details.",
+    );
   }
 
   if (Object.keys(updates).length === 0) {
