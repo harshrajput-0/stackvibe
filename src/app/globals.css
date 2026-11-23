@@ -159,6 +159,25 @@ a {
   }
 }
 
+/* Page transition: fades each route in on mount. Paired with
+   src/app/template.js, which Next.js remounts fresh on every navigation
+   (unlike layout.js, which persists) — so this replays every time you move
+   between pages, e.g. dashboard -> builder -> a published site. */
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-transition {
+  animation: page-fade-in 0.32s var(--ease) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;
