@@ -84,7 +84,8 @@ async function handleGenerate() {
     );
   } catch (error) {
     console.error("Failed to create project", error);
-    setError("Failed to create project.");
+
+    setError(error.message || "Failed to create project.");
   } finally {
     setCreating(false);
   }
