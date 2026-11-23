@@ -57,6 +57,35 @@ function markRateLimit(error, fallbackMessage) {
 // the real diagnostics once (status code + body are usually hidden) and
 // retry a couple of times with backoff instead of failing the revision
 // outright on the first hiccup.
+// APICallError's top-level `.message` is often a generic one-liner from
+// OpenRouter itself — e.g. "Provider returned error" — because the actual
+// reason (the backing provider rejected the request, is overloaded, doesn't
+// support a feature we asked for, etc.) lives in `.responseBody`, which
+// generateObject never surfaces. Log the real body once and fold a trimmed
+// version into the error's own message, so "Last error: ..." in the builder
+// UI — and the message saved to project.error — is actually actionable
+// instead of just "Provider returned error" with no further detail.
+function enrichApiCallError(error, label) {
+  if (!APICallError.isInstance?.(error)) return error;
+
+  const status = error.statusCode;
+  let body = error.responseBody;
+  if (typeof body === "string" && body.length > 400) body = body.slice(0, 400) + "…";
+
+  console.error(`[${label}] AI provider call failed.`, {
+    statusCode: status,
+    url: error.url,
+    responseBody: body,
+  });
+
+  if (body && !error.message?.includes(String(body))) {
+    const bodyText = typeof body === "string" ? body : JSON.stringify(body);
+    error.message = `${error.message} — provider said (status ${status ?? "?"}): ${bodyText}`;
+  }
+
+  return error;
+}
+
 function isTransportJsonError(error) {
   if (APICallError.isInstance?.(error)) {
     return (
@@ -105,7 +134,7 @@ async function generateObjectWithRetry(options, { retries = 2, label = "generate
       }
 
       if (isRateLimitError(error)) throw error; // let the caller's rate-limit handling run
-      throw error;
+      throw enrichApiCallError(error, label);
     }
   }
   throw lastError;
@@ -130,13 +159,18 @@ Purpose: ${file.description}
   console.log(`[AI] Creating file: ${file.path}...`);
 
   // Ask AI to generate structured data
-  const { object } = await generateObject({
-    model,
-    schema: FileCodeSchema,
-    system,
-    prompt: userMessage,
-    maxRetries: 2,
-  });
+  let object;
+  try {
+    ({ object } = await generateObject({
+      model,
+      schema: FileCodeSchema,
+      system,
+      prompt: userMessage,
+      maxRetries: 2,
+    }));
+  } catch (error) {
+    throw enrichApiCallError(error, `AI:${file.path}`);
+  }
 
   // Extract and normalize the generated code
   let code = normalizeContent(object.code);
@@ -352,7 +386,7 @@ export async function generateProject(prompt, callbacks) {
         "AI limit reached while planning the project.",
       );
     }
-    throw error;
+    throw enrichApiCallError(error, "AI:planning");
   }
 
   // ENSURE REQUIRED FILES EXIST
