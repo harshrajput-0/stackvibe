@@ -120,51 +120,33 @@ a {
   }
 }
 
-/* LOGO ANIMATION (see components/ui/Logo.jsx)
-   The logo always stays recognisable: the layers take turns lifting back ->
-   front, while the wave on the front layer keeps flowing. */
-.logo-layer {
-  animation: logo-lift 1.8s var(--ease) infinite;
+/* LOGO ANIMATION — "Pulse Vibe" (see components/ui/Logo.jsx)
+   Three bars pulse out of phase, like a small equalizer. Reads as "alive"
+   at any size, including the 13px chatbar badge. */
+.logo-pulse-bar {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: logo-pulse 1.6s ease-in-out infinite;
 }
-.logo-back {
-  --logo-lo: 0.25;
-  --logo-hi: 0.6;
+.logo-pulse-b1 {
+  animation-delay: -1.2s;
+}
+.logo-pulse-b2 {
+  animation-delay: -0.6s;
+  opacity: 0.7;
+}
+.logo-pulse-b3 {
   animation-delay: 0s;
-}
-.logo-middle {
-  --logo-lo: 0.55;
-  --logo-hi: 0.85;
-  animation-delay: 0.2s;
-}
-.logo-front {
-  --logo-lo: 1;
-  --logo-hi: 1;
-  animation-delay: 0.4s;
+  opacity: 0.4;
 }
 
-@keyframes logo-lift {
+@keyframes logo-pulse {
   0%,
   100% {
-    opacity: var(--logo-lo);
-    transform: translateY(0);
+    transform: scaleY(0.55);
   }
-  40% {
-    opacity: var(--logo-hi);
-    transform: translateY(-3px);
-  }
-}
-
-/* The wave is drawn 3 periods wide and slid by exactly one period (36). */
-.logo-wave {
-  animation: logo-wave-flow 1.8s linear infinite;
-}
-
-@keyframes logo-wave-flow {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(36px);
+  50% {
+    transform: scaleY(1.9);
   }
 }
 
@@ -200,8 +182,7 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .logo-layer,
-  .logo-wave {
+  .logo-pulse-bar {
     animation: none;
   }
 
