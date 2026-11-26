@@ -1,8 +1,7 @@
 import mongoose from "mongoose";
-import crypto from "crypto";
 import Project from "@/models/project.model.js";
 import { slugify } from "@/lib/utils/slugify.js";
-import { isReservedSlug } from "@/lib/reservedSlugs.js";
+import { getOwnerHandle } from "@/lib/utils/ownerHandle.js";
 import { projectDetailsSchema } from "@/lib/validators/project.js";
 import { hashContent } from "@/lib/utils/hashContent.js";
 import { HttpError } from "@/lib/httpErrors.js";
@@ -39,37 +38,22 @@ async function isSlugTaken(owner, slug, excludeId) {
   return Boolean(await Project.exists(filter));
 }
 
-// Check whether this PUBLIC slug is already used by any published site.
-// `excludeId` lets the current project ignore itself (e.g. on republish).
-async function isPublicSlugTaken(publicSlug, excludeId) {
-  const filter = { publicSlug, published: true };
-  if (excludeId) filter._id = { $ne: excludeId };
-  return Boolean(await Project.exists(filter));
-}
+// Assign a public prefix (ownerHandle) to all of this owner's existing projects.
+//
+// Older projects were published at /<slug> or /<publicSlug>.
+// Preserve their old URLs in `publicSlug` before adding the prefix,
+// allowing existing links to redirect to the new prefixed URLs.
+async function ensureOwnerHandle(owner) {
+  await Project.updateMany(
+    { owner, ownerHandle: null, published: true, publicSlug: null },
+    [{ $set: { publicSlug: "$slug" } }],
+    { updatePipeline: true },
+  );
 
-// Short, stable, per-owner suffix. Two different users can both have a
-// project named "Coffee Shop" (and both keep that as their private slug) —
-// this only kicks in to disambiguate the public URL, so it doesn't need to
-// be secret, just short and consistent for the same owner.
-function ownerSuffix(owner) {
-  return crypto.createHash("sha1").update(String(owner)).digest("hex").slice(0, 6);
-}
-
-// Build a public slug that's guaranteed unique across ALL users' published
-// sites, starting from the project's own (per-owner-unique) slug:
-//   "coffee-shop"            — free, use as-is
-//   "coffee-shop-4f9a2c"     — taken, so disambiguate with the owner's suffix
-//   "coffee-shop-4f9a2c-2"   — even that's taken (rare), number it
-// Republishing the same project keeps whatever publicSlug it already has.
-async function createUniquePublicSlug(baseSlug, owner, excludeId) {
-  if (!(await isPublicSlugTaken(baseSlug, excludeId))) return baseSlug;
-
-  const withOwner = `${baseSlug}-${ownerSuffix(owner)}`;
-  let slug = withOwner;
-  for (let attempt = 2; await isPublicSlugTaken(slug, excludeId); attempt++) {
-    slug = `${withOwner}-${attempt}`;
-  }
-  return slug;
+  await Project.updateMany(
+    { owner, ownerHandle: null },
+    { $set: { ownerHandle: getOwnerHandle(owner) } },
+  );
 }
 
 // Slug for a new project: "coffee-shop", then "coffee-shop-2", "-3", …
@@ -106,6 +90,7 @@ export async function createProject(userId, prompt) {
 const project = await Project.create({
   name,
   slug,
+  ownerHandle: getOwnerHandle(userId),
   description: prompt,
   files: {},
   messages: [
@@ -182,24 +167,20 @@ function makeGenerationCallbacks(projectId) {
     onFileComplete: async (path, code) => {
       console.log(`[Assistant] Finished file ${path} for project ${projectId}`);
 
-      // Files generate concurrently (MAX_CONCURRENCY), so several
-      // onFileComplete calls can be in flight at once. A read-mutate-save
-      // here would race: two calls reading the same snapshot and saving
-      // back would make the later save silently clobber the earlier one's
-      // appended message, which splits what should be one contiguous run
-      // of "Created file" messages into two — rendering as two separate
-      // "Created N files" bubbles. Use one atomic update per file instead,
-      // so concurrent completions can never overwrite each other.
-      //
-      // Note: file paths contain dots (e.g. "/components/Footer.js"), so a
-      // classic `$set: {[`files.${path}`]: ...}` would be misread by Mongo
-      // as nested fields split on every ".". $setField takes `field` as a
-      // literal key instead, which is what we need here (requires Mongo 5+).
-      // Mongoose 9 requires opting in to pipeline-style updates (an array
-      // as the update argument) via `updatePipeline: true` — otherwise it
-      // throws "Cannot pass an array to query updates unless the
-      // `updatePipeline` option is set." See:
-      // https://mongoosejs.com/docs/migrating_to_9.html#update-pipelines-disallowed-by-default
+// Files are generated concurrently (MAX_CONCURRENCY), so multiple
+// onFileComplete calls can run simultaneously. Read-mutate-save could
+// cause race conditions, overwriting earlier updates and splitting
+// consecutive "Created file" messages into separate bubbles.
+//
+// Use an atomic update per file to prevent concurrent writes from
+// clobbering each other.
+//
+// Note: File paths contain dots (e.g. "/components/Footer.js"), so
+// regular $set would interpret them as nested fields. $setField treats
+// the path as a literal key (MongoDB 5+).
+//
+// Mongoose 9 requires `updatePipeline: true` for array-based updates.
+// See: https://mongoosejs.com/docs/migrating_to_9.html#update-pipelines-disallowed-by-default
       await Project.findByIdAndUpdate(
         projectId,
         [
@@ -463,11 +444,14 @@ export async function retryFileBySlug(slug, userId, path) {
 export async function listProjects(userId) {
   requireUser(userId);
 
+  await ensureOwnerHandle(userId);
+
   return Project.find(
     { owner: userId },
     {
       name: 1,
       slug: 1,
+      ownerHandle: 1,
       description: 1,
       thumbnail: 1,
       published: 1,
@@ -483,7 +467,7 @@ function serializeProject(project) {
     _id: project._id,
     name: project.name,
     slug: project.slug,
-    publicSlug: project.publicSlug,
+    ownerHandle: project.ownerHandle,
     description: project.description,
     files: filesToObject(project.files),
     messages: project.messages,
@@ -504,10 +488,15 @@ function serializeProject(project) {
 export async function getProjectById(id, userId) {
   requireUser(userId);
 
-  const project = await Project.findOne({ _id: id, owner: userId });
+  let project = await Project.findOne({ _id: id, owner: userId });
 
   if (!project) {
     throw new HttpError(404, "Project not found");
+  }
+
+  if (!project.ownerHandle) {
+    await ensureOwnerHandle(userId);
+    project = await Project.findById(project._id);
   }
 
   return serializeProject(project);
@@ -518,10 +507,16 @@ export async function getProjectById(id, userId) {
 export async function getProjectBySlug(slug, userId) {
   requireUser(userId);
 
-  const project = await Project.findOne({ slug, owner: userId });
+  let project = await Project.findOne({ slug, owner: userId });
 
   if (!project) {
     throw new HttpError(404, "Project not found");
+  }
+
+  // Older projects don't have a public prefix yet — add it once.
+  if (!project.ownerHandle) {
+    await ensureOwnerHandle(userId);
+    project = await Project.findById(project._id);
   }
 
   return serializeProject(project);
@@ -581,8 +576,11 @@ export async function updateProjectFiles(id, userId, files) {
   };
 }
 
-// Publish a project: after this, anyone can visit it at
-// stackvibe.vercel.app/<slug> (see src/app/[slug]/page.js).
+// Publish a project so anyone can access it at:
+// stackvibe.vercel.app/<ownerHandle>/<slug>
+//
+// The public URL uses the current slug, so renaming the slug
+// automatically changes the live link without storing another URL.
 export async function publishProject(id, userId) {
   requireUser(userId);
 
@@ -591,33 +589,11 @@ export async function publishProject(id, userId) {
     throw new HttpError(404, "Project not found");
   }
 
-  // Step 1: find the user's own project (we only need its slug here).
-  const existing = await Project.findOne({ _id: id, owner: userId }).select(
-    "slug publicSlug",
-  );
+  await ensureOwnerHandle(userId);
 
-  if (!existing) {
-    throw new HttpError(404, "Project not found");
-  }
-
-  if (isReservedSlug(existing.slug)) {
-    throw new HttpError(
-      400,
-      "That URL is reserved. Pick a different one in the project details.",
-    );
-  }
-
-  // Step 2: resolve the public URL. If this project already has one (e.g.
-  // a republish), keep it — otherwise derive one from the slug, automatically
-  // disambiguating it from anyone else's project with the same name.
-  const publicSlug =
-    existing.publicSlug ||
-    (await createUniquePublicSlug(existing.slug, userId, id));
-
-  // Step 3: flip the switch. From now on the public page can find it.
   const project = await Project.findOneAndUpdate(
     { _id: id, owner: userId },
-    { published: true, publicSlug },
+    { published: true },
     { returnDocument: "after" },
   );
 
@@ -629,7 +605,7 @@ export async function publishProject(id, userId) {
     _id: project._id,
     name: project.name,
     slug: project.slug,
-    publicSlug: project.publicSlug,
+    ownerHandle: project.ownerHandle,
     description: project.description,
     version: project.version,
     published: project.published,
@@ -658,14 +634,13 @@ export async function getPublicProject(id) {
 }
 
 
-export async function getPublicProjectBySlug(slug) {
-  // Published sites are looked up by their `publicSlug`. The `slug` branch
-  // here is only a fallback for projects published before `publicSlug`
-  // existed (where it was never set and the private slug doubled as the
-  // public one) — keeps their old links working.
+// Public site lookup: /<ownerHandle>/<slug>. The slug only has to be unique
+// inside one user's account, so two users can both have "coffee-shop".
+export async function getPublicProjectByHandle(ownerHandle, slug) {
   const project = await Project.findOne({
     published: true,
-    $or: [{ publicSlug: slug }, { publicSlug: null, slug }],
+    ownerHandle,
+    slug,
   });
 
   if (!project) {
@@ -675,6 +650,27 @@ export async function getPublicProjectBySlug(slug) {
   // Only send what the public page needs. Never send the owner's id,
   // the chat history, etc.
   return {
+    name: project.name,
+    description: project.description,
+    files: filesToObject(project.files),
+  };
+}
+
+// OLD links: /<slug> from before prefixes existed. Used only so those links
+// keep working — the page redirects them to the new /<ownerHandle>/<slug>.
+export async function getLegacyPublicProject(slug) {
+  const project = await Project.findOne({
+    published: true,
+    publicSlug: slug,
+  });
+
+  if (!project) {
+    throw new HttpError(404, "Site not found");
+  }
+
+  return {
+    ownerHandle: project.ownerHandle,
+    slug: project.slug,
     name: project.name,
     description: project.description,
     files: filesToObject(project.files),
@@ -864,26 +860,30 @@ export async function updateProjectDetails(id, userId, details) {
 
   const updates = parsed.data;
 
-  if (updates.slug && (await isSlugTaken(userId, updates.slug, id))) {
-    throw new HttpError(409, "That URL is already used by another project");
-  }
-
-  if (updates.slug && isReservedSlug(updates.slug)) {
-    throw new HttpError(
-      400,
-      "That URL is reserved. Pick a different one in the project details.",
-    );
-  }
-
   if (Object.keys(updates).length === 0) {
     throw new HttpError(400, "Nothing to update");
   }
 
-  const project = await Project.findOneAndUpdate( 
-    { _id: id, owner: userId },
-    { $set: updates },
-    { returnDocument: "after" },
-  );
+  // The slug only has to be unique inside THIS user's account.
+  if (updates.slug && (await isSlugTaken(userId, updates.slug, id))) {
+    throw new HttpError(409, "You already have a project with that URL");
+  }
+
+  let project;
+  try {
+    project = await Project.findOneAndUpdate(
+      { _id: id, owner: userId },
+      { $set: updates },
+      { returnDocument: "after" },
+    );
+  } catch (err) {
+    // Two requests grabbed the same slug at the same time — the unique
+    // index (owner + slug) stopped the second one.
+    if (err?.code === 11000) {
+      throw new HttpError(409, "You already have a project with that URL");
+    }
+    throw err;
+  }
 
   if (!project) {
     throw new HttpError(404, "Project not found");
@@ -893,6 +893,8 @@ export async function updateProjectDetails(id, userId, details) {
     _id: project._id,
     name: project.name,
     slug: project.slug,
+    ownerHandle: project.ownerHandle,
+    published: project.published,
     description: project.description,
     thumbnail: project.thumbnail,
     version: project.version,

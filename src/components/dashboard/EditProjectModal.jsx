@@ -78,7 +78,7 @@ function EditProjectForm({ project, isSaving, onSave, onClose }) {
     try {
       await onSave(changes);
     } catch (err) {
-      // 409 = the slug belongs to another project; show it on the slug field.
+      // 409 = you already have another project with this slug; show it on the slug field.
       setServerError({
         field: err.status === 409 ? "slug" : "form",
         message: err.message,
@@ -119,7 +119,7 @@ function EditProjectForm({ project, isSaving, onSave, onClose }) {
       <Input
         id="edit-slug"
         label="Slug"
-        prefix={`${PUBLIC_HOST}/`}
+        prefix={`${PUBLIC_HOST}/${project.ownerHandle ? `${project.ownerHandle}/` : ""}`}
         inputClassName="font-(family-name:--mono) text-[13.5px]"
         autoComplete="off"
         spellCheck={false}
@@ -148,6 +148,12 @@ function EditProjectForm({ project, isSaving, onSave, onClose }) {
           </button>
         )}
       </div>
+      {project.published && slug !== (project.slug ?? "") && (
+        <div className="mt-1.5 text-xs text-(--gray-500)">
+          This site is live — saving moves it to the new URL, and the old link
+          will stop working.
+        </div>
+      )}
 
       <FormError>
         {serverError.field === "form" && serverError.message}

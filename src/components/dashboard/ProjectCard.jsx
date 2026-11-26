@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { ProjectThumb } from "./ProjectThumb";
 import { ProjectMenu } from "./ProjectMenu";
 import { Button } from "@/components/ui";
+import { publicPath } from "@/lib/utils/publicUrl";
 
 export const ProjectCard = ({ project, onOpen, onEdit, onDelete }) => {
   const edited = moment(project.updatedAt ?? project.createdAt).fromNow();
@@ -41,7 +42,7 @@ export const ProjectCard = ({ project, onOpen, onEdit, onDelete }) => {
       {/* ONLY PUBLISHED PROJECTS HAVE VISIT LINK */}
       {project.published && (
         <Button
-          href={`/${project.slug}`}
+          href={publicPath(project)}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(event) => event.stopPropagation()}

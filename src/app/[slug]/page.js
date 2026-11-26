@@ -1,13 +1,16 @@
 import { cache } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connectDB } from "@/lib/db.js";
 import { HttpError } from "@/lib/httpErrors";
 import { isReservedSlug } from "@/lib/reservedSlugs";
-import { getPublicProjectBySlug } from "@/controllers/project.controller";
+import { getLegacyPublicProject } from "@/controllers/project.controller";
 import { SiteSandbox } from "@/components/shared/SiteSandbox";
 
 export const dynamic = "force-dynamic";
 
+// OLD-STYLE LINKS: /<slug> from before URLs had a user prefix.
+// Sites that have a prefix now are sent to /<ownerHandle>/<slug>, so links
+// people already shared keep working.
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
 
 const loadSite = cache(async (slug) => {
@@ -15,7 +18,7 @@ const loadSite = cache(async (slug) => {
 
   try {
     await connectDB();
-    return await getPublicProjectBySlug(slug);
+    return await getLegacyPublicProject(slug);
   } catch (err) {
     // "Not found" is a normal outcome. Any other error is a real
     // problem (like the database being down), so let it bubble up.
@@ -44,6 +47,9 @@ export default async function PublishedSitePage({ params }) {
 
   // Shows Next.js's standard "404 - page not found" screen.
   if (!site) notFound();
+
+  // Move old links to the new prefixed address.
+  if (site.ownerHandle) redirect(`/${site.ownerHandle}/${site.slug}`);
 
   // The site's code needs an App.js file to start from. If it's missing,
   // the project has no real content yet, so treat it as "not found".

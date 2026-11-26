@@ -7,7 +7,7 @@ import { Button } from "@/components/ui";
 
 export function PreviewView({
   chromeUrl,
-  siteSlug,
+  sitePath,
   siteName,
   files = {},
   isPublished = false,
@@ -39,12 +39,11 @@ export function PreviewView({
           {isPublished && (
             // chromeUrl is a display-only string (host + slug, no
             // protocol — see PUBLIC_HOST) built just to *look like* an
-            // address bar, so it isn't a usable href. The published site
-            // is served by this same app at the root /[slug] route, so a
-            // plain root-relative link is the correct (and simplest) way
-            // to actually get there, same as the dashboard card's link.
+            // address bar, so it isn't a usable href. `sitePath` is the
+            // root-relative path (/<ownerHandle>/<slug>) of the published
+            // site, same as the dashboard card's link.
             <Button
-              href={`/${siteSlug}`}
+              href={sitePath}
               target="_blank"
               rel="noopener noreferrer"
               variant="iconGhost"

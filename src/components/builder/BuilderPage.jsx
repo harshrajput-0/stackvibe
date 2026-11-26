@@ -26,6 +26,7 @@ import { useFileEditor } from "@/hooks/useFileEditor";
 import { getProjectBySlug, publishProject } from "@/api-client/projectService";
 import { retryProjectFile } from "@/api-client/generationService";
 import { PUBLIC_HOST } from "@/lib/constants";
+import { publicPath } from "@/lib/utils/publicUrl";
 
 export function BuilderPage({ projectSlug }) {
   const router = useRouter();
@@ -135,11 +136,11 @@ export function BuilderPage({ projectSlug }) {
   }, [generation.error]);
 
   const projectName = project?.name || fallbackName;
-  // Once published, the live site may sit at a slightly different slug than
-  // the private one (e.g. "coffee-shop-4f9a2c") if another user already
-  // published under the same name — show that real address once we have it,
-  // and fall back to the private slug as a preview before the first publish.
-  const chromeUrl = `${PUBLIC_HOST}/${project?.publicSlug || projectSlug}`;
+  // The live address is always built from the project's CURRENT slug and
+  // its owner prefix, so it can never go stale after a slug change.
+  // Before the project has loaded, fall back to the slug from the page URL.
+  const sitePath = project ? publicPath(project) : `/${projectSlug}`;
+  const chromeUrl = `${PUBLIC_HOST}${sitePath}`;
 
   // Update files after with one returned form chat — the backend already
   // has these, so they aren't "unsaved" the way a manual code edit is.
@@ -322,7 +323,7 @@ export function BuilderPage({ projectSlug }) {
           {view.mainView === "preview" && (
             <PreviewView
               chromeUrl={chromeUrl}
-              siteSlug={projectSlug}
+              sitePath={sitePath}
               siteName={projectName}
               files={fileEditor.files}
               isPublished={Boolean(project?.published)}
