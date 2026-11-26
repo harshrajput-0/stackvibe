@@ -10,12 +10,9 @@ function nextId() {
   return `msg-${messageIdCounter}`;
 }
 
-// Backend errors are short, human-written sentences ("AI limit reached...",
-// "Prompt is required"). A raw JS/runtime failure (a thrown TypeError that
-// slipped past the API layer, a minified "x.json is not a function") is not
-// something a user should ever see. Treat messages that look like code as
-// unreadable and swap in a plain-language fallback instead.
-function toDisplayErrorMessage(err) {
+// Show readable backend errors, but replace code-like runtime errors
+// with a plain-language fallback.
+export function toDisplayErrorMessage(err) {
   const message = err?.message || "";
   const looksTechnical =
     !message ||
@@ -36,6 +33,9 @@ export function useChat(initialMessages = []) {
 
   // Tracks whether the component is still mounted.
   const mountedRef = useRef(true);
+// Tracks the active revision request, ignoring stale responses after
+// external resolution or when a newer request starts.
+  const requestIdRef = useRef(0);
 
 
   // Updates the mounted status when the component mounts or unmounts.
@@ -70,10 +70,15 @@ export function useChat(initialMessages = []) {
       setInputValue("");
       setIsSending(true);
 
+      const requestId = ++requestIdRef.current;
+
       try {
         // Send the revision prompt to the backend.
         const result = await sendChatMessage(slug, text);
         if (!mountedRef.current) return;
+        // Someone already resolved this turn another way (see
+        // resolveExternally) — applying this response now would be stale.
+        if (requestIdRef.current !== requestId) return;
 
         // Add the AI's response and applied changes to the chat.
         appendMessage({
@@ -89,6 +94,7 @@ export function useChat(initialMessages = []) {
       } 
       catch (err) {
         if (!mountedRef.current) return;
+        if (requestIdRef.current !== requestId) return;
 
         // Display a readable error message — never raw JS/runtime text.
         appendMessage({
@@ -99,11 +105,20 @@ export function useChat(initialMessages = []) {
       } 
       finally {
         // Stop after request finished
-        if (mountedRef.current) setIsSending(false);
+        if (mountedRef.current && requestIdRef.current === requestId) {
+          setIsSending(false);
+        }
       }
     },
     [inputValue, isSending, appendMessage],
   );
+
+// Invalidates stuck revision requests and unfreezes input when the server
+// has finished but the connection was silently dropped.
+  const resolveExternally = useCallback(() => {
+    requestIdRef.current += 1;
+    if (mountedRef.current) setIsSending(false);
+  }, []);
 
   return {
     messages,
@@ -113,5 +128,6 @@ export function useChat(initialMessages = []) {
     resetMessages,
     appendMessage,
     isSending,
+    resolveExternally,
   };
 }

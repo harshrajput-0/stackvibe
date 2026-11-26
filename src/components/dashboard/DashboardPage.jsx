@@ -12,6 +12,7 @@ import { ConfirmModal } from "@/components/ui";
 
 import { useDashboardPrompt } from "@/hooks/useDashboardPrompt";
 import { useProjectActions } from "@/hooks/useProjectActions";
+import { withViewTransition } from "@/lib/utils/navigate";
 
 import {
   listProjects,
@@ -79,9 +80,11 @@ async function handleGenerate() {
 
     // Open the newly created project by slug, and flag it so the builder
     // page kicks off/polls the generation pipeline.
-    router.push(
-      `/builder/${newProject.slug}?mode=generate&name=${encodeURIComponent(newProject.name)}`,
-    );
+    withViewTransition(() => {
+      router.push(
+        `/builder/${newProject.slug}?mode=generate&name=${encodeURIComponent(newProject.name)}`,
+      );
+    });
   } catch (error) {
     console.error("Failed to create project", error);
 
@@ -94,7 +97,7 @@ async function handleGenerate() {
   // Open an existing project from the project grid — slug routing, not
   // the Mongo _id.
   function handleOpenProject(project) {
-    router.push(`/builder/${project.slug}`);
+    withViewTransition(() => router.push(`/builder/${project.slug}`));
   }
 
   return (

@@ -181,8 +181,23 @@ a {
   animation: page-fade-in 0.32s var(--ease) both;
 }
 
+/* Route-level crossfade (e.g. dashboard <-> builder), via the native View
+   Transitions API — see src/lib/utils/navigate.js. Browsers without
+   support simply navigate as before; .page-transition above still covers
+   the fade-in either way. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.28s;
+  animation-timing-function: var(--ease);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .logo-pulse-bar {
+    animation: none;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
     animation: none;
   }
 

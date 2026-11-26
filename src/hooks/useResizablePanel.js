@@ -10,6 +10,9 @@ export function useResizablePanel({
   minWidth = 260,
   maxWidthRatio = 0.3,
 } = {}) {
+// `preferredWidth` stores the user's chosen width; `width` clamps it to
+// the viewport without overwriting the preference when the viewport shrinks.
+  const preferredWidth = useRef(initialWidth);
   const [width, setWidth] = useState(initialWidth);
   const isResizing = useRef(false);
   const startX = useRef(0);
@@ -29,7 +32,9 @@ export function useResizablePanel({
       if (!isResizing.current) return;
       const clientX = event.touches ? event.touches[0].clientX : event.clientX;
       const delta = clientX - startX.current;
-      setWidth(clamp(startWidth.current + delta));
+      const next = clamp(startWidth.current + delta);
+      preferredWidth.current = next;
+      setWidth(next);
     },
     [clamp],
   );
@@ -53,10 +58,12 @@ export function useResizablePanel({
   );
 
   // Re-clamp on window resize so the panel never ends up over 30% of a
-  // newly-shrunk viewport.
+  // newly-shrunk viewport — but clamp the *preference*, not the current
+  // (possibly already-shrunk) width, so widening the viewport again
+  // restores what the user originally dragged to.
   useEffect(() => {
     function handleWindowResize() {
-      setWidth((current) => clamp(current));
+      setWidth(clamp(preferredWidth.current));
     }
     window.addEventListener("resize", handleWindowResize);
     return () => window.removeEventListener("resize", handleWindowResize);

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { downloadProjectZip } from "@/lib/utils/downloadProjectZip";
+import { withViewTransition } from "@/lib/utils/navigate";
 
 function TabButton({ active, onClick, className = "", children }) {
   return (
@@ -32,8 +33,13 @@ export function BuilderTopBar({
   onPublish,
   files = {},
 }) {
+  const router = useRouter();
   const [isDownloading, setIsDownloading] = useState(false);
   const hasFiles = Object.keys(files).length > 0;
+
+  function handleBack() {
+    withViewTransition(() => router.push("/dashboard"));
+  }
 
   async function handleDownload() {
     if (!hasFiles || isDownloading) return;
@@ -56,13 +62,14 @@ export function BuilderTopBar({
       <div
         className="flex min-w-0 items-center gap-2.5 text-sm font-semibold max-tablet:[grid-area:1/1]"
       >
-        <Link
-          href="/dashboard"
+        <button
+          type="button"
+          onClick={handleBack}
           className="flex flex-none items-center text-gray-500 transition-colors duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-black"
           aria-label="Back to dashboard"
         >
           <ChevronLeft size={17} strokeWidth={1.8} />
-        </Link>
+        </button>
         <span className="flex-none">StackVibe</span>
         <span className="flex-none font-normal text-gray-400">/</span>
         <span className="min-w-0 truncate" title={projectName}>

@@ -17,7 +17,7 @@ import { SaveChangesModal } from "./SaveChangesModal";
 
 // Custom hooks
 import { useGeneration } from "@/hooks/useGeneration";
-import { useChat } from "@/hooks/useChat";
+import { useChat, toDisplayErrorMessage } from "@/hooks/useChat";
 import { useBuilderView } from "@/hooks/useBuilderView";
 import { usePublishModal } from "@/hooks/usePublishModal";
 import { useFileEditor } from "@/hooks/useFileEditor";
@@ -27,6 +27,7 @@ import { getProjectBySlug, publishProject } from "@/api-client/projectService";
 import { retryProjectFile } from "@/api-client/generationService";
 import { PUBLIC_HOST } from "@/lib/constants";
 import { publicPath } from "@/lib/utils/publicUrl";
+import { withViewTransition } from "@/lib/utils/navigate";
 
 export function BuilderPage({ projectSlug }) {
   const router = useRouter();
@@ -48,6 +49,7 @@ export function BuilderPage({ projectSlug }) {
   const [isRetryingAll, setIsRetryingAll] = useState(false);
   const [retryError, setRetryError] = useState("");
   const hasStartedGeneration = useRef(false);
+  const chatPollRef = useRef(null);
 
   // Update builder with latest project data
   const applyProject = useCallback(
@@ -99,9 +101,9 @@ export function BuilderPage({ projectSlug }) {
       chat.appendMessage({
         id: "generation-complete",
         role: "ai",
-        text: "Website generation complete! Take a look at the code — tell me what to change.",
+        text: "Website generation complete! Take a look at the preview — tell me what to change.",
       });
-      view.showCode();
+      view.showPreview();
     }
   }
 
@@ -148,6 +150,68 @@ export function BuilderPage({ projectSlug }) {
     if (updatedFiles) fileEditor.setFromServer(updatedFiles);
   }
 
+  function stopChatPoll() {
+    if (chatPollRef.current) {
+      clearInterval(chatPollRef.current);
+      chatPollRef.current = null;
+    }
+  }
+
+  // Revisions run as one long request with no progress updates, unlike
+  // initial generation (which polls). If a network/proxy in between
+  // silently drops a connection left open that long, the fetch in
+  // chat.sendMessage never resolves or rejects, and the chat is stuck on
+  // "Revising..." forever even though the server finished — the only fix
+  // was refreshing the page. While a send is in flight, poll the project
+  // in the background so the UI catches up on its own:
+  //  - version increases  -> the revision applied; sync files/messages.
+  //  - status is "failed" -> the revision errored; show that in the chat.
+  // Either way we stop waiting on the original request via
+  // chat.resolveExternally(), so a late response can't undo this.
+  function handleSendMessage() {
+    // Mirrors chat.sendMessage's own guard — if it's going to no-op, don't
+    // start a poll loop for nothing.
+    if (!chat.inputValue.trim() || chat.isSending || !projectSlug) return;
+
+    const baselineVersion = project?.version ?? 0;
+
+    chat.sendMessage(projectSlug, handleFilesUpdated);
+
+    stopChatPoll();
+    chatPollRef.current = setInterval(async () => {
+      try {
+        const data = await getProjectBySlug(projectSlug);
+
+        if (data.version > baselineVersion) {
+          stopChatPoll();
+          applyProject(data);
+          chat.resolveExternally();
+        } else if (data.status === "failed") {
+          stopChatPoll();
+          applyProject(data);
+          chat.appendMessage({
+            id: `revision-failed-${Date.now()}`,
+            role: "ai",
+            text: toDisplayErrorMessage({ message: data.error }),
+          });
+          chat.resolveExternally();
+        }
+      } catch {
+        // Transient poll failure — try again next tick, or let the
+        // original request (if it ever does return) catch this up.
+      }
+    }, 4000);
+  }
+
+  // Stop polling once nothing is waiting on it anymore (normal completion,
+  // the fallback resolving it, or an error) — and always on unmount.
+  useEffect(() => {
+    if (!chat.isSending) stopChatPoll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat.isSending]);
+
+  useEffect(() => stopChatPoll, []);
+
   // Mark the project published (or re-publish after edits).
   async function handlePublish() {
     if (!project?._id || isPublishing) return;
@@ -177,7 +241,7 @@ export function BuilderPage({ projectSlug }) {
   }
 
   function handleBackToProjects() {
-    router.push("/dashboard");
+    withViewTransition(() => router.push("/dashboard"));
   }
 
   // Retry a single file that fell back to a placeholder. Runs synchronously
@@ -248,7 +312,7 @@ export function BuilderPage({ projectSlug }) {
           messages={chat.messages}
           inputValue={chat.inputValue}
           onInputChange={chat.setInputValue}
-          onSend={() => chat.sendMessage(projectSlug, handleFilesUpdated)}
+          onSend={handleSendMessage}
           files={fileEditor.files}
           disabled={
             view.mainView === "limit" ||
