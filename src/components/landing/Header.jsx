@@ -5,7 +5,7 @@ export const Header = () => {
   return (
     <div className="flex flex-none items-center justify-between px-12 py-5.5">
       <div className="flex items-center gap-2.5">
-        <Logo width={19} height={21.4} color="white" />
+        <Logo size={19} color="white" />
         <span className="font-bold">StackVibe</span>
       </div>
       <div className="flex items-center gap-2.5">

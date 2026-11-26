@@ -120,30 +120,51 @@ a {
   }
 }
 
-/* LOGO ANIMATION  */
-@keyframes logo-pulse {
+/* LOGO ANIMATION (see components/ui/Logo.jsx)
+   The logo always stays recognisable: the layers take turns lifting back ->
+   front, while the wave on the front layer keeps flowing. */
+.logo-layer {
+  animation: logo-lift 1.8s var(--ease) infinite;
+}
+.logo-back {
+  --logo-lo: 0.25;
+  --logo-hi: 0.6;
+  animation-delay: 0s;
+}
+.logo-middle {
+  --logo-lo: 0.55;
+  --logo-hi: 0.85;
+  animation-delay: 0.2s;
+}
+.logo-front {
+  --logo-lo: 1;
+  --logo-hi: 1;
+  animation-delay: 0.4s;
+}
+
+@keyframes logo-lift {
   0%,
   100% {
-    opacity: var(--logo-opacity, 1);
+    opacity: var(--logo-lo);
     transform: translateY(0);
   }
-  50% {
-    opacity: 1;
-    transform: translateY(-2.5px);
+  40% {
+    opacity: var(--logo-hi);
+    transform: translateY(-3px);
   }
 }
 
-/* Flow: all layers dip and rise in a staggered sequence, creating a
-   traveling color effect. Used for inline "AI is working" indicators. */
-@keyframes logo-flow {
-  0%,
-  100% {
-    opacity: var(--logo-min, 0.2);
-    transform: translateY(0);
+/* The wave is drawn 3 periods wide and slid by exactly one period (36). */
+.logo-wave {
+  animation: logo-wave-flow 1.8s linear infinite;
+}
+
+@keyframes logo-wave-flow {
+  from {
+    transform: translateX(0);
   }
-  50% {
-    opacity: 1;
-    transform: translateY(-2.5px);
+  to {
+    transform: translateX(36px);
   }
 }
 
@@ -179,6 +200,11 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .logo-layer,
+  .logo-wave {
+    animation: none;
+  }
+
   * {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;

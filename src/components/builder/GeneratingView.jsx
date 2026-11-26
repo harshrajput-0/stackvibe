@@ -36,7 +36,7 @@ export function GeneratingView({
     <div className="flex min-h-0 flex-1 items-center justify-center p-6.5">
       <div className="w-full max-w-115 rounded-lg border border-gray-200 bg-white p-[28px_26px] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
         <div className="mb-4 flex h-9.5 w-9.5 items-center justify-center rounded-[10px] border border-gray-200">
-          <Logo width={18} height={18.4} color="black" animated />
+          <Logo size={18} animated />
         </div>
 
         <h3 className="text-[17px] font-bold tracking-[-0.01em]">

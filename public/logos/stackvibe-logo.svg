@@ -1,0 +1,15 @@
+<svg width="180" height="184" viewBox="0 0 90 92" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="StackVibe">
+  <title>StackVibe</title>
+
+  <!-- Three stacked layers: black in front, getting lighter toward the back.
+       Same shape as the favicon; the "black to lighter" comes from the opacity
+       steps (back 25%, middle 55%, front 100%) of one color, so where layers
+       overlap they naturally get a little darker. -->
+  <path d="M45 4 L86 24 L45 44 L4 24 Z"   fill="#111111" opacity="0.25"/>
+  <path d="M45 26 L86 46 L45 66 L4 46 Z"  fill="#111111" opacity="0.55"/>
+  <path d="M45 48 L86 68 L45 88 L4 68 Z"  fill="#111111"/>
+
+  <!-- The "vibe" wave on the front layer -->
+  <path d="M18 68 Q27 58 36 68 T54 68 T72 68"
+        stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" opacity="0.95"/>
+</svg>

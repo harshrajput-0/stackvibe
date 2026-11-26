@@ -1,0 +1,56 @@
+<svg width="180" height="184" viewBox="0 0 90 92" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="StackVibe loading">
+  <title>StackVibe</title>
+
+  <defs>
+    <!-- Fades the wave out at both ends so it looks like it flows through the layer -->
+    <linearGradient id="sv-fade" gradientUnits="userSpaceOnUse" x1="14" y1="0" x2="76" y2="0">
+      <stop offset="0"    stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.22" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="0.78" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="1"    stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="sv-wave-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="90" height="92">
+      <rect x="14" y="40" width="62" height="50" fill="url(#sv-fade)"/>
+    </mask>
+  </defs>
+
+  <style>
+    /* The logo always stays recognisable (never fades to nothing):
+       layers take turns lifting back -> front, and the wave keeps flowing. */
+    .sv-layer { animation: sv-lift 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+    .sv-back   { --lo: 0.25; --hi: 0.6;  animation-delay: 0s;   }
+    .sv-middle { --lo: 0.55; --hi: 0.85; animation-delay: 0.2s; }
+    .sv-front  { --lo: 1;    --hi: 1;    animation-delay: 0.4s; }
+
+    @keyframes sv-lift {
+      0%, 100% { opacity: var(--lo); transform: translateY(0); }
+      40%      { opacity: var(--hi); transform: translateY(-3px); }
+    }
+
+    /* The wave is drawn 3 periods wide and slid by exactly one period (36),
+       so the loop is seamless. */
+    .sv-wave { animation: sv-flow 1.8s linear infinite; }
+    @keyframes sv-flow {
+      from { transform: translateX(0); }
+      to   { transform: translateX(36px); }
+    }
+
+    /* No motion preferred = just show the normal logo */
+    @media (prefers-reduced-motion: reduce) {
+      .sv-layer, .sv-wave { animation: none; }
+    }
+  </style>
+
+  <path class="sv-layer sv-back"   d="M45 4 L86 24 L45 44 L4 24 Z"  fill="#111111" opacity="0.25"/>
+  <path class="sv-layer sv-middle" d="M45 26 L86 46 L45 66 L4 46 Z" fill="#111111" opacity="0.55"/>
+
+  <!-- front layer and wave lift together -->
+  <g class="sv-layer sv-front">
+    <path d="M45 48 L86 68 L45 88 L4 68 Z" fill="#111111"/>
+    <g mask="url(#sv-wave-mask)">
+      <path class="sv-wave"
+            d="M-18 68 Q-9 58 0 68 T18 68 T36 68 T54 68 T72 68 T90 68 T108 68"
+            stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" opacity="0.95"/>
+    </g>
+  </g>
+</svg>

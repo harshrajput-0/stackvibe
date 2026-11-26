@@ -11,7 +11,7 @@ export function ChatWorkingIndicator() {
       </div>
       <div className="flex items-center gap-2">
         <span className="flex h-5.5 w-5.5 flex-none items-center justify-center rounded-[7px] border border-gray-200">
-          <Logo width={13} height={13.3} color="black" variant="flow" animated />
+          <Logo size={13} animated />
         </span>
         <span className="text-[12.5px] text-gray-500">
           Revising the project

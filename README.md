@@ -13,6 +13,7 @@ StackVibe is an AI-powered Web Application Builder that enables users to quickly
 - **Export & Download:** Download completed project builds directly as ZIP files.
 - **Authentication Support:** Built-in sign-in and sign-up flows with social auth/SSO callback support.
 - **Responsive Workspace UI:** Drag-and-drop resizable panels for chat, code view, and live app preview.
+- **Logo:** One `<Logo />` component (`size`, `color="black|white"`, `animated`) matching `app/favicon.ico`; standalone SVGs in `public/logos/` (static and animated).
 - **Branded Placeholders:** Projects without a thumbnail show the StackVibe mark on a black ground instead of a generic blank card.
 
 ---
@@ -126,3 +127,6 @@ How it works:
 - **Renaming a published site:** the previous prefixed URL stops working. The edit dialog warns you before saving.
 - **Old links:** sites published before prefixes existed (`/<slug>`) redirect to the new `/<ownerHandle>/<slug>` URL. Older projects get their prefix filled in automatically the first time their owner opens the dashboard or builder.
 - **Database:** `Project` has a unique index on `(owner, slug)`. If you're upgrading an existing database, make sure it has no duplicate slugs for a single user, or the index can't be built.
+
+
+

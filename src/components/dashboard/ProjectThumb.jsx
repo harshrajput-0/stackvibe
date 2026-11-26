@@ -15,7 +15,7 @@ export function ProjectThumb({ src, className }) {
         <img src={src} alt="" className="size-full object-cover" />
       ) : (
         <div className="flex size-[30%] items-center justify-center rounded-xl bg-white shadow-[0_6px_16px_-4px_rgba(0,0,0,0.12)]">
-          <Logo width={34} height={34.75} color="black" />
+          <Logo size={34} />
         </div>
       )}
     </div>

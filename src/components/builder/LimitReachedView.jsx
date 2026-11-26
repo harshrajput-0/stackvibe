@@ -24,7 +24,7 @@ export function LimitReachedView({
         {/* Show animated logo to show that something is happening */}
         <div className="mb-4 flex h-9.5 w-9.5 items-center justify-center rounded-[10px] border border-gray-200">
           {isResuming ? (
-            <Logo width={18} height={18.4} color="black" animated />
+            <Logo size={18} animated />
           ) : (
             <Clock size={18} strokeWidth={1.8} color="#0A0A0A" />
           )}
